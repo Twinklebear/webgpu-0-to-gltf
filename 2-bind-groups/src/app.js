@@ -1,6 +1,6 @@
 // We use webpack to package our shaders as string resources that we can import
 import shaderCode from "./triangle.wgsl";
-import {mat4, vec3} from "gl-matrix";
+import {mat4} from "gl-matrix";
 import {ArcballCamera} from "arcball_camera";
 import {Controller} from "ez_canvas_controller";
 
