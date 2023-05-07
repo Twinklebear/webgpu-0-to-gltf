@@ -584,40 +584,62 @@ export class GLBModel {
 // Upload a GLB model and return it
 export async function uploadGLB(buffer, device) {
     document.getElementById("loading-text").hidden = false;
-    // The file header and chunk 0 header
-    // TODO: It sounds like the spec does allow for multiple binary chunks,
-    // so then how do you know which chunk a buffer exists in? Maybe the buffer
-    // id corresponds to the binary chunk ID? Would have to find info in the
-    // spec or an example file to check this
+    // glB has a JSON chunk and a binary chunk, potentially followed by
+    // other chunks specifying extension specific data, which we ignore
+    // since we don't support any extensions.
+    // Read the glB header and the JSON chunk header together 
+    // glB header:
+    // - magic: u32 (expect: 0x46546C67)
+    // - version: u32 (expect: 2)
+    // - length: u32 (size of the entire file, in bytes)
+    // JSON chunk header
+    // - chunkLength: u32 (size of the chunk, in bytes)
+    // - chunkType: u32 (expect: 0x4E4F534A for the JSON chunk)
     var header = new Uint32Array(buffer, 0, 5);
     if (header[0] != 0x46546C67) {
-        alert('This does not appear to be a glb file?');
-        return;
+        alert("The provided file does not appear to be a glB file");
+        throw Error("Provided file is not a glB file")
     }
-    var glbJsonData =
+    if (header[1] != 2) {
+        alert("The provided file is not glTF version 2");
+        throw Error("Provided file is glTF 2.0 file");
+    }
+    if (header[4] != 0x4E4F534A) {
+        alert("Invalid glB: The first chunk of the glB file is not a JSON chunk!");
+        throw Error("Invalid glB: The first chunk of the glB file is not a JSON chunk!");
+    }
+
+    // Parse the JSON chunk of the glB file to a JSON object
+    var jsonChunk =
         JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(buffer, 20, header[3])));
 
+    // Read the binary chunk header
+    // - chunkLength: u32 (size of the chunk, in bytes)
+    // - chunkType: u32 (expect: 0x46546C67 for the binary chunk)
     var binaryHeader = new Uint32Array(buffer, 20 + header[3], 2);
-    var glbBuffer = new GLTFBuffer(buffer, binaryHeader[0], 28 + header[3]);
-
-    if (28 + header[3] + binaryHeader[0] != buffer.byteLength) {
-        console.log('TODO: Multiple binary chunks in file');
+    if (binaryHeader[1] != 0x004E4942) {
+        alert("Invalid glB: The second chunk of the glB file is not a binary chunk!");
+        throw Error("Invalid glB: The second chunk of the glB file is not a binary chunk!");
     }
+    // Make a GLTFBuffer that is a view of the entire binary chunk's data,
+    // we'll use this to create buffer views within the chunk for memory referenced
+    // by objects in the glTF scene
+    var binaryChunk = new GLTFBuffer(buffer, binaryHeader[0], 28 + header[3]);
 
     // TODO: Later could look at merging buffers and actually using the starting
     // offsets, but want to avoid uploading the entire buffer since it may
     // contain packed images
     var bufferViews = [];
-    for (var i = 0; i < glbJsonData.bufferViews.length; ++i) {
-        bufferViews.push(new GLTFBufferView(glbBuffer, glbJsonData.bufferViews[i]));
+    for (var i = 0; i < jsonChunk.bufferViews.length; ++i) {
+        bufferViews.push(new GLTFBufferView(binaryChunk, jsonChunk.bufferViews[i]));
     }
 
     var images = [];
-    if (glbJsonData['images'] !== undefined) {
-        for (var i = 0; i < glbJsonData['images'].length; ++i) {
-            var imgJson = glbJsonData['images'][i];
+    if (jsonChunk['images'] !== undefined) {
+        for (var i = 0; i < jsonChunk['images'].length; ++i) {
+            var imgJson = jsonChunk['images'][i];
             var imageView = new GLTFBufferView(
-                glbBuffer, glbJsonData['bufferViews'][imgJson['bufferView']]);
+                binaryChunk, jsonChunk['bufferViews'][imgJson['bufferView']]);
             var imgBlob = new Blob([imageView.buffer], {type: imgJson['mime/type']});
             var img = await createImageBitmap(imgBlob);
 
@@ -642,16 +664,16 @@ export async function uploadGLB(buffer, device) {
 
     var defaultSampler = new GLTFSampler({}, device);
     var samplers = [];
-    if (glbJsonData['samplers'] !== undefined) {
-        for (var i = 0; i < glbJsonData['samplers'].length; ++i) {
-            samplers.push(new GLTFSampler(glbJsonData['samplers'][i], device));
+    if (jsonChunk['samplers'] !== undefined) {
+        for (var i = 0; i < jsonChunk['samplers'].length; ++i) {
+            samplers.push(new GLTFSampler(jsonChunk['samplers'][i], device));
         }
     }
 
     var textures = [];
-    if (glbJsonData['textures'] !== undefined) {
-        for (var i = 0; i < glbJsonData['textures'].length; ++i) {
-            var tex = glbJsonData['textures'][i];
+    if (jsonChunk['textures'] !== undefined) {
+        for (var i = 0; i < jsonChunk['textures'].length; ++i) {
+            var tex = jsonChunk['textures'][i];
             var sampler =
                 tex['sampler'] !== undefined ? samplers[tex['sampler']] : defaultSampler;
             textures.push(new GLTFTexture(sampler, images[tex['source']]));
@@ -660,13 +682,13 @@ export async function uploadGLB(buffer, device) {
 
     var defaultMaterial = new GLTFMaterial({});
     var materials = [];
-    for (var i = 0; i < glbJsonData['materials'].length; ++i) {
-        materials.push(new GLTFMaterial(glbJsonData['materials'][i], textures));
+    for (var i = 0; i < jsonChunk['materials'].length; ++i) {
+        materials.push(new GLTFMaterial(jsonChunk['materials'][i], textures));
     }
 
     var meshes = [];
-    for (var i = 0; i < glbJsonData.meshes.length; ++i) {
-        var mesh = glbJsonData.meshes[i];
+    for (var i = 0; i < jsonChunk.meshes.length; ++i) {
+        var mesh = jsonChunk.meshes[i];
 
         var primitives = [];
         for (var j = 0; j < mesh.primitives.length; ++j) {
@@ -683,8 +705,8 @@ export async function uploadGLB(buffer, device) {
             }
 
             var indices = null;
-            if (glbJsonData['accessors'][prim['indices']] !== undefined) {
-                var accessor = glbJsonData['accessors'][prim['indices']];
+            if (jsonChunk['accessors'][prim['indices']] !== undefined) {
+                var accessor = jsonChunk['accessors'][prim['indices']];
                 var viewID = accessor['bufferView'];
                 bufferViews[viewID].needsUpload = true;
                 bufferViews[viewID].addUsage(GPUBufferUsage.INDEX);
@@ -695,7 +717,7 @@ export async function uploadGLB(buffer, device) {
             var normals = null;
             var texcoords = [];
             for (var attr in prim['attributes']) {
-                var accessor = glbJsonData['accessors'][prim['attributes'][attr]];
+                var accessor = jsonChunk['accessors'][prim['attributes'][attr]];
                 var viewID = accessor['bufferView'];
                 bufferViews[viewID].needsUpload = true;
                 bufferViews[viewID].addUsage(GPUBufferUsage.VERTEX);
@@ -735,7 +757,7 @@ export async function uploadGLB(buffer, device) {
     }
 
     var nodes = [];
-    var gltfNodes = makeGLTFSingleLevel(glbJsonData['nodes']);
+    var gltfNodes = makeGLTFSingleLevel(jsonChunk['nodes']);
     for (var i = 0; i < gltfNodes.length; ++i) {
         var n = gltfNodes[i];
         if (n['mesh'] !== undefined) {
