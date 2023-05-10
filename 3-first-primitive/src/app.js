@@ -40,32 +40,6 @@ import {uploadGLB} from "./glb";
         }
     }
 
-    // Specify vertex data
-    // Allocate room for the vertex data: 3 vertices
-    var dataBuf = device.createBuffer(
-        {size: 3 * 2 * 4 * 4, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true});
-
-    new Float32Array(dataBuf.getMappedRange()).set([
-        1, -1, 0, 1,  // position
-        -1, -1, 0, 1,  // position
-        0, 1, 0, 1,  // position
-    ]);
-    dataBuf.unmap();
-
-    // Vertex attribute state and shader stage
-    var vertexState = {
-        // Shader stage info
-        module: shaderModule,
-        entryPoint: "vertex_main",
-        // Vertex buffer info
-        buffers: [{
-            arrayStride: 4 * 4,
-            attributes: [
-                {format: "float32x4", offset: 0, shaderLocation: 0},
-            ]
-        }]
-    };
-
     // Setup render outputs
     var swapChainFormat = "bgra8unorm";
     context.configure(
@@ -78,46 +52,10 @@ import {uploadGLB} from "./glb";
         usage: GPUTextureUsage.RENDER_ATTACHMENT
     });
 
-    var fragmentState = {
-        // Shader info
-        module: shaderModule,
-        entryPoint: "fragment_main",
-        // Output render target info
-        targets: [{format: swapChainFormat}]
-    };
-
     // Create bind group layout
     var bindGroupLayout = device.createBindGroupLayout({
         entries: [{binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {type: "uniform"}}]
     });
-
-    // Create render pipeline
-    var layout = device.createPipelineLayout({bindGroupLayouts: [bindGroupLayout]});
-
-    var renderPipeline = device.createRenderPipeline({
-        layout: layout,
-        vertex: vertexState,
-        fragment: fragmentState,
-        depthStencil: {format: depthFormat, depthWriteEnabled: true, depthCompare: "less"}
-    });
-
-    var renderPassDesc = {
-        colorAttachments: [{
-            view: undefined,
-            loadOp: "clear",
-            clearValue: [0.3, 0.3, 0.3, 1],
-            storeOp: "store"
-        }],
-        depthStencilAttachment: {
-            view: depthTexture.createView(),
-            depthLoadOp: "clear",
-            depthClearValue: 1.0,
-            depthStoreOp: "store",
-            stencilLoadOp: "clear",
-            stencilClearValue: 0,
-            stencilStoreOp: "store"
-        }
-    };
 
     // Create a buffer to store the view parameters
     var viewParamsBuffer = device.createBuffer(
@@ -129,9 +67,9 @@ import {uploadGLB} from "./glb";
     });
 
     var camera =
-        new ArcballCamera([0, 0, 3], [0, 0, 0], [0, 1, 0], 0.5, [canvas.width, canvas.height]);
+        new ArcballCamera([0, 0, 1], [0, 0, 0], [0, 1, 0], 0.5, [canvas.width, canvas.height]);
     var proj = mat4.perspective(
-        mat4.create(), 50 * Math.PI / 180.0, canvas.width / canvas.height, 0.1, 100);
+        mat4.create(), 50 * Math.PI / 180.0, canvas.width / canvas.height, 0.01, 10);
     var projView = mat4.create();
 
     // Register mouse and touch listeners
@@ -153,10 +91,12 @@ import {uploadGLB} from "./glb";
     };
     controller.registerForCanvas(canvas);
 
-    console.log(avocadoGlb);
+    // Load the packaged GLB file, Avocado.glb
+    var glbPrim = await fetch(avocadoGlb).then(res => res.arrayBuffer()).then(buf => uploadGLB(buf, device));
+    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
+    console.log(glbPrim);
+
     // Setup onchange listener for file uploads
-    var glbMesh = await fetch(avocadoGlb).then(res => res.arrayBuffer()).then(buf => uploadGLB(buf, device));
-    console.log(glbMesh);
     document.getElementById("uploadGLB").onchange =
         function () {
             document.getElementById("loading-text").hidden = false;
@@ -165,8 +105,10 @@ import {uploadGLB} from "./glb";
                 alert("error reading GLB file");
             };
             reader.onload = function () {
-                uploadGLB(reader.result, device).then((mesh) => {
-                    glbMesh = mesh;
+                uploadGLB(reader.result, device).then((prim) => {
+                    glbPrim = prim;
+                    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
+                    console.log(glbPrim);
                 });
             };
             reader.readAsArrayBuffer(this.files[0]);
@@ -179,6 +121,24 @@ import {uploadGLB} from "./glb";
         return promise
     };
     requestAnimationFrame(animationFrame);
+
+    var renderPassDesc = {
+        colorAttachments: [{
+            view: undefined,
+            loadOp: "clear",
+            clearValue: [0.3, 0.3, 0.3, 1],
+            storeOp: "store"
+        }],
+        depthStencilAttachment: {
+            view: depthTexture.createView(),
+            depthLoadOp: "clear",
+            depthClearValue: 1.0,
+            depthStoreOp: "store",
+            stencilLoadOp: "clear",
+            stencilClearValue: 0,
+            stencilStoreOp: "store"
+        }
+    };
 
     // Render!
     while (true) {
@@ -202,10 +162,7 @@ import {uploadGLB} from "./glb";
 
         var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
 
-        renderPass.setPipeline(renderPipeline);
-        renderPass.setBindGroup(0, viewParamBG);
-        renderPass.setVertexBuffer(0, dataBuf);
-        renderPass.draw(3, 1, 0, 0);
+        glbPrim.render(renderPass, viewParamBG);
 
         renderPass.end();
         device.queue.submit([commandEncoder.finish()]);

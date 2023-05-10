@@ -1,0 +1,357 @@
+const GLTFRenderMode = {
+    POINTS: 0,
+    LINE: 1,
+    LINE_LOOP: 2,
+    LINE_STRIP: 3,
+    TRIANGLES: 4,
+    TRIANGLE_STRIP: 5,
+    // Note: fans are not supported in WebGPU, use should be
+    // an error or converted into a list/strip
+    TRIANGLE_FAN: 6,
+};
+
+const GLTFComponentType = {
+    BYTE: 5120,
+    UNSIGNED_BYTE: 5121,
+    SHORT: 5122,
+    UNSIGNED_SHORT: 5123,
+    INT: 5124,
+    UNSIGNED_INT: 5125,
+    FLOAT: 5126,
+    DOUBLE: 5130,
+};
+
+function alignTo(val, align) {
+    return Math.floor((val + align - 1) / align) * align;
+}
+
+function gltfTypeNumComponents(type) {
+    switch (type) {
+        case 'SCALAR':
+            return 1;
+        case 'VEC2':
+            return 2;
+        case 'VEC3':
+            return 3;
+        case 'VEC4':
+            return 4;
+        default:
+            alert('Unhandled glTF Type ' + type);
+            return null;
+    }
+}
+
+function gltfTypeToWebGPU(componentType, type) {
+    var typeStr = null;
+    switch (componentType) {
+        case GLTFComponentType.BYTE:
+            typeStr = 'char';
+            break;
+        case GLTFComponentType.UNSIGNED_BYTE:
+            typeStr = 'uchar';
+            break;
+        case GLTFComponentType.SHORT:
+            typeStr = 'short';
+            break;
+        case GLTFComponentType.UNSIGNED_SHORT:
+            typeStr = 'ushort';
+            break;
+        case GLTFComponentType.INT:
+            typeStr = 'int';
+            break;
+        case GLTFComponentType.UNSIGNED_INT:
+            typeStr = 'uint';
+            break;
+        case GLTFComponentType.FLOAT:
+            typeStr = 'float';
+            break;
+        case GLTFComponentType.DOUBLE:
+            typeStr = 'double';
+            break;
+        default:
+            alert('Unrecognized GLTF Component Type?');
+    }
+
+    switch (gltfTypeNumComponents(type)) {
+        case 1:
+            return typeStr;
+        case 2:
+            return typeStr + '2';
+        case 3:
+            return typeStr + '3';
+        case 4:
+            return typeStr + '4';
+        default:
+            alert('Too many components!');
+    }
+}
+
+function gltfTypeSize(componentType, type) {
+    var typeSize = 0;
+    switch (componentType) {
+        case GLTFComponentType.BYTE:
+            typeSize = 1;
+            break;
+        case GLTFComponentType.UNSIGNED_BYTE:
+            typeSize = 1;
+            break;
+        case GLTFComponentType.SHORT:
+            typeSize = 2;
+            break;
+        case GLTFComponentType.UNSIGNED_SHORT:
+            typeSize = 2;
+            break;
+        case GLTFComponentType.INT:
+            typeSize = 4;
+            break;
+        case GLTFComponentType.UNSIGNED_INT:
+            typeSize = 4;
+            break;
+        case GLTFComponentType.FLOAT:
+            typeSize = 4;
+            break;
+        case GLTFComponentType.DOUBLE:
+            typeSize = 4;
+            break;
+        default:
+            alert('Unrecognized GLTF Component Type?');
+    }
+    return gltfTypeNumComponents(type) * typeSize;
+}
+
+export class GLTFBuffer {
+    constructor(buffer, size, offset) {
+        this.arrayBuffer = buffer;
+        this.size = size;
+        this.byteOffset = offset;
+    }
+}
+
+export class GLTFBufferView {
+    constructor(buffer, view) {
+        this.length = view['byteLength'];
+        this.byteOffset = buffer.byteOffset;
+        if (view['byteOffset'] !== undefined) {
+            this.byteOffset += view['byteOffset'];
+        }
+        this.byteStride = 0;
+        if (view['byteStride'] !== undefined) {
+            this.byteStride = view['byteStride'];
+        }
+        this.buffer = new Uint8Array(buffer.arrayBuffer, this.byteOffset, this.length);
+
+        this.needsUpload = false;
+        this.gpuBuffer = null;
+        this.usage = 0;
+    }
+
+    addUsage(usage) {
+        this.usage = this.usage | usage;
+    }
+
+    upload(device) {
+        // Note: must align to 4 byte size when mapped at creation is true
+        var buf = device.createBuffer({
+            size: alignTo(this.buffer.byteLength, 4),
+            usage: this.usage,
+            mappedAtCreation: true
+        });
+        new (this.buffer.constructor)(buf.getMappedRange()).set(this.buffer);
+        buf.unmap();
+        this.gpuBuffer = buf;
+        this.needsUpload = false;
+    }
+}
+
+export class GLTFAccessor {
+    constructor(view, accessor) {
+        this.count = accessor['count'];
+        this.componentType = accessor['componentType'];
+        this.gltfType = accessor['type'];
+        this.webGPUType = gltfTypeToWebGPU(this.componentType, accessor['type']);
+        this.numComponents = gltfTypeNumComponents(accessor['type']);
+        this.view = view;
+        this.byteOffset = 0;
+        if (accessor['byteOffset'] !== undefined) {
+            this.byteOffset = accessor['byteOffset'];
+        }
+    }
+
+    get byteStride() {
+        var elementSize = gltfTypeSize(this.componentType, this.gltfType);
+        return Math.max(elementSize, this.view.byteStride);
+    }
+}
+
+export class GLTFPrimitive {
+    constructor(indices, positions, topology) {
+        this.indices = indices;
+        this.positions = positions;
+        this.topology = topology;
+        this.renderPipeline = null;
+    }
+
+    buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout) {
+        // Vertex attribute state and shader stage
+        var vertexState = {
+            // Shader stage info
+            module: shaderModule,
+            entryPoint: "vertex_main",
+            // Vertex buffer info
+            buffers: [{
+                arrayStride: this.positions.byteStride,
+                attributes: [
+                    {format: "float32x3", offset: 0, shaderLocation: 0},
+                ]
+            }]
+        };
+
+        var fragmentState = {
+            // Shader info
+            module: shaderModule,
+            entryPoint: "fragment_main",
+            // Output render target info
+            targets: [{format: colorFormat}]
+        };
+
+        var primitive = {topology: 'triangle-list'};
+        if (this.topology == GLTFRenderMode.TRIANGLE_STRIP) {
+            primitive.topology = 'triangle-strip';
+            primitive.stripIndexFormat =
+                this.indices.componentType == GLTFComponentType.UNSIGNED_SHORT ? 'uint16'
+                    : 'uint32';
+        }
+
+        var layout = device.createPipelineLayout({bindGroupLayouts: [uniformsBGLayout]});
+
+        this.renderPipeline = device.createRenderPipeline({
+            layout: layout,
+            vertex: vertexState,
+            fragment: fragmentState,
+            primitive: primitive,
+            depthStencil: {format: depthFormat, depthWriteEnabled: true, depthCompare: "less"}
+        });
+    }
+
+    render(renderPassEncoder, uniformsBG) {
+        renderPassEncoder.setPipeline(this.renderPipeline);
+        renderPassEncoder.setBindGroup(0, uniformsBG);
+
+        renderPassEncoder.setVertexBuffer(0,
+            this.positions.view.gpuBuffer,
+            this.positions.byteOffset,
+            this.positions.length);
+
+        if (this.indices) {
+            var indexFormat = this.indices.componentType == GLTFComponentType.UNSIGNED_SHORT
+                ? 'uint16'
+                : 'uint32';
+            renderPassEncoder.setIndexBuffer(this.indices.view.gpuBuffer,
+                indexFormat,
+                this.indices.byteOffset,
+                this.indices.length);
+            renderPassEncoder.drawIndexed(this.indices.count);
+        } else {
+            renderPassEncoder.draw(this.positions.count);
+        }
+    }
+}
+
+// Upload a GLB model and return it
+export async function uploadGLB(buffer, device) {
+    document.getElementById("loading-text").hidden = false;
+    // glB has a JSON chunk and a binary chunk, potentially followed by
+    // other chunks specifying extension specific data, which we ignore
+    // since we don't support any extensions.
+    // Read the glB header and the JSON chunk header together 
+    // glB header:
+    // - magic: u32 (expect: 0x46546C67)
+    // - version: u32 (expect: 2)
+    // - length: u32 (size of the entire file, in bytes)
+    // JSON chunk header
+    // - chunkLength: u32 (size of the chunk, in bytes)
+    // - chunkType: u32 (expect: 0x4E4F534A for the JSON chunk)
+    var header = new Uint32Array(buffer, 0, 5);
+    if (header[0] != 0x46546C67) {
+        alert("The provided file does not appear to be a glB file");
+        throw Error("Provided file is not a glB file")
+    }
+    if (header[1] != 2) {
+        alert("The provided file is not glTF version 2");
+        throw Error("Provided file is glTF 2.0 file");
+    }
+    if (header[4] != 0x4E4F534A) {
+        alert("Invalid glB: The first chunk of the glB file is not a JSON chunk!");
+        throw Error("Invalid glB: The first chunk of the glB file is not a JSON chunk!");
+    }
+
+    // Parse the JSON chunk of the glB file to a JSON object
+    var jsonChunk =
+        JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(buffer, 20, header[3])));
+
+    // Read the binary chunk header
+    // - chunkLength: u32 (size of the chunk, in bytes)
+    // - chunkType: u32 (expect: 0x46546C67 for the binary chunk)
+    var binaryHeader = new Uint32Array(buffer, 20 + header[3], 2);
+    if (binaryHeader[1] != 0x004E4942) {
+        alert("Invalid glB: The second chunk of the glB file is not a binary chunk!");
+        throw Error("Invalid glB: The second chunk of the glB file is not a binary chunk!");
+    }
+    // Make a GLTFBuffer that is a view of the entire binary chunk's data,
+    // we'll use this to create buffer views within the chunk for memory referenced
+    // by objects in the glTF scene
+    var binaryChunk = new GLTFBuffer(buffer, binaryHeader[0], 28 + header[3]);
+
+    // Create GLTFBufferView objects for all the buffer views in the glTF file
+    var bufferViews = [];
+    for (var i = 0; i < jsonChunk.bufferViews.length; ++i) {
+        bufferViews.push(new GLTFBufferView(binaryChunk, jsonChunk.bufferViews[i]));
+    }
+
+    // Load the first mesh
+    var mesh = jsonChunk.meshes[0];
+    var prim = mesh.primitives[0];
+    var topology = prim['mode'];
+    // Default is triangles if mode specified
+    if (topology === undefined) {
+        topology = GLTFRenderMode.TRIANGLES;
+    }
+    if (topology != GLTFRenderMode.TRIANGLES &&
+        topology != GLTFRenderMode.TRIANGLE_STRIP) {
+        alert('Ignoring primitive with unsupported mode ' + prim['mode']);
+        throw Error('Unsupported primitive mode');
+    }
+
+    var indices = null;
+    if (jsonChunk['accessors'][prim['indices']] !== undefined) {
+        var accessor = jsonChunk['accessors'][prim['indices']];
+        var viewID = accessor['bufferView'];
+        bufferViews[viewID].needsUpload = true;
+        bufferViews[viewID].addUsage(GPUBufferUsage.INDEX);
+        indices = new GLTFAccessor(bufferViews[viewID], accessor);
+    }
+
+    var positions = null;
+    for (var attr in prim['attributes']) {
+        var accessor = jsonChunk['accessors'][prim['attributes'][attr]];
+        var viewID = accessor['bufferView'];
+        bufferViews[viewID].needsUpload = true;
+        bufferViews[viewID].addUsage(GPUBufferUsage.VERTEX);
+        if (attr == 'POSITION') {
+            positions = new GLTFAccessor(bufferViews[viewID], accessor);
+        }
+    }
+
+    var gltfPrim =
+        new GLTFPrimitive(indices, positions, topology);
+
+    // Upload the different views used by mesh
+    for (var i = 0; i < bufferViews.length; ++i) {
+        if (bufferViews[i].needsUpload) {
+            bufferViews[i].upload(device);
+        }
+    }
+    document.getElementById("loading-text").hidden = true;
+    return gltfPrim;
+}
+
