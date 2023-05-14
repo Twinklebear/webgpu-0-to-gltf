@@ -66,8 +66,34 @@ import {uploadGLB} from "./glb";
         entries: [{binding: 0, resource: {buffer: viewParamsBuffer}}]
     });
 
+    // Load the packaged GLB file, Avocado.glb
+    var glbPrim = await fetch(avocadoGlb).then(res => res.arrayBuffer()).then(buf => uploadGLB(buf, device));
+    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
+    console.log(glbPrim);
+
+    // Setup onchange listener for file uploads
+    document.getElementById("uploadGLB").onchange =
+        function () {
+            document.getElementById("loading-text").hidden = false;
+            var reader = new FileReader();
+            reader.onerror = function () {
+                alert("error reading GLB file");
+            };
+            reader.onload = function () {
+                uploadGLB(reader.result, device).then((prim) => {
+                    glbPrim = prim;
+                    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
+                    console.log(glbPrim);
+                });
+            };
+            if (this.files[0]) {
+                reader.readAsArrayBuffer(this.files[0]);
+            }
+        };
+
+    // Setup the camera
     var camera =
-        new ArcballCamera([0, 0, 1], [0, 0, 0], [0, 1, 0], 0.5, [canvas.width, canvas.height]);
+        new ArcballCamera([0, 0, 0.2], [0, 0, 0], [0, 1, 0], 0.5, [canvas.width, canvas.height]);
     var proj = mat4.perspective(
         mat4.create(), 50 * Math.PI / 180.0, canvas.width / canvas.height, 0.01, 10);
     var projView = mat4.create();
@@ -90,29 +116,6 @@ import {uploadGLB} from "./glb";
         camera.pan(drag);
     };
     controller.registerForCanvas(canvas);
-
-    // Load the packaged GLB file, Avocado.glb
-    var glbPrim = await fetch(avocadoGlb).then(res => res.arrayBuffer()).then(buf => uploadGLB(buf, device));
-    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
-    console.log(glbPrim);
-
-    // Setup onchange listener for file uploads
-    document.getElementById("uploadGLB").onchange =
-        function () {
-            document.getElementById("loading-text").hidden = false;
-            var reader = new FileReader();
-            reader.onerror = function () {
-                alert("error reading GLB file");
-            };
-            reader.onload = function () {
-                uploadGLB(reader.result, device).then((prim) => {
-                    glbPrim = prim;
-                    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
-                    console.log(glbPrim);
-                });
-            };
-            reader.readAsArrayBuffer(this.files[0]);
-        };
 
     var animationFrame = function () {
         var resolve = null;

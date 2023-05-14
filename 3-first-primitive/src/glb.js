@@ -41,48 +41,47 @@ function gltfTypeNumComponents(type) {
     }
 }
 
+// Note: only returns non-normalized type names,
+// so byte/ubyte = sint8/uint8, not snorm8/unorm8, same for ushort
 function gltfTypeToWebGPU(componentType, type) {
     var typeStr = null;
     switch (componentType) {
         case GLTFComponentType.BYTE:
-            typeStr = 'char';
+            typeStr = 'sint8';
             break;
         case GLTFComponentType.UNSIGNED_BYTE:
-            typeStr = 'uchar';
+            typeStr = 'uint8';
             break;
         case GLTFComponentType.SHORT:
-            typeStr = 'short';
+            typeStr = 'sint16';
             break;
         case GLTFComponentType.UNSIGNED_SHORT:
-            typeStr = 'ushort';
+            typeStr = 'uint16';
             break;
         case GLTFComponentType.INT:
-            typeStr = 'int';
+            typeStr = 'int32';
             break;
         case GLTFComponentType.UNSIGNED_INT:
-            typeStr = 'uint';
+            typeStr = 'uint32';
             break;
         case GLTFComponentType.FLOAT:
-            typeStr = 'float';
-            break;
-        case GLTFComponentType.DOUBLE:
-            typeStr = 'double';
+            typeStr = 'float32';
             break;
         default:
-            alert('Unrecognized GLTF Component Type?');
+            throw Error(`Unrecognized or unsupported glTF type ${componentType}`);
     }
 
     switch (gltfTypeNumComponents(type)) {
         case 1:
             return typeStr;
         case 2:
-            return typeStr + '2';
+            return typeStr + 'x2';
         case 3:
-            return typeStr + '3';
+            return typeStr + 'x3';
         case 4:
-            return typeStr + '4';
+            return typeStr + 'x4';
         default:
-            alert('Too many components!');
+            throw Error(`Invalid number of components for gltfType: ${type}`);
     }
 }
 
@@ -168,8 +167,7 @@ export class GLTFAccessor {
         this.count = accessor['count'];
         this.componentType = accessor['componentType'];
         this.gltfType = accessor['type'];
-        this.webGPUType = gltfTypeToWebGPU(this.componentType, accessor['type']);
-        this.numComponents = gltfTypeNumComponents(accessor['type']);
+        this.webGpuType = gltfTypeToWebGPU(this.componentType, this.gltfType);
         this.view = view;
         this.byteOffset = 0;
         if (accessor['byteOffset'] !== undefined) {
@@ -201,7 +199,11 @@ export class GLTFPrimitive {
             buffers: [{
                 arrayStride: this.positions.byteStride,
                 attributes: [
-                    {format: "float32x3", offset: 0, shaderLocation: 0},
+                    // We do not pass offset here, the offset here is relative to the start of
+                    // each attribute element within the arrayStride byte element. This is
+                    // useful for interleaved vertex buffers, which we do not have.
+                    // We will set the offset in setVertexBuffer.
+                    {format: this.positions.webGpuType, offset: 0, shaderLocation: 0},
                 ]
             }]
         };
@@ -214,12 +216,12 @@ export class GLTFPrimitive {
             targets: [{format: colorFormat}]
         };
 
+        // Our loader only supports triangle lists and strips, so by default we set
+        // the primitive topology to triangle list, and check if it's instead a triangle strip
         var primitive = {topology: 'triangle-list'};
         if (this.topology == GLTFRenderMode.TRIANGLE_STRIP) {
             primitive.topology = 'triangle-strip';
-            primitive.stripIndexFormat =
-                this.indices.componentType == GLTFComponentType.UNSIGNED_SHORT ? 'uint16'
-                    : 'uint32';
+            primitive.stripIndexFormat = this.indices.webGpuType;
         }
 
         var layout = device.createPipelineLayout({bindGroupLayouts: [uniformsBGLayout]});
@@ -243,11 +245,8 @@ export class GLTFPrimitive {
             this.positions.length);
 
         if (this.indices) {
-            var indexFormat = this.indices.componentType == GLTFComponentType.UNSIGNED_SHORT
-                ? 'uint16'
-                : 'uint32';
             renderPassEncoder.setIndexBuffer(this.indices.view.gpuBuffer,
-                indexFormat,
+                this.indices.webGpuType,
                 this.indices.byteOffset,
                 this.indices.length);
             renderPassEncoder.drawIndexed(this.indices.count);
