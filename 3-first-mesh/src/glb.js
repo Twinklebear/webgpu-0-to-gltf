@@ -21,28 +21,65 @@ const GLTFComponentType = {
     DOUBLE: 5130,
 };
 
+const GLTFType = {
+    SCALAR: 0,
+    VEC2: 1,
+    VEC3: 2,
+    VEC4: 3,
+    MAT2: 4,
+    MAT3: 5,
+    MAT5: 6
+
+};
+
 function alignTo(val, align) {
     return Math.floor((val + align - 1) / align) * align;
 }
 
-function gltfTypeNumComponents(type) {
+function parseGltfType(type) {
     switch (type) {
         case "SCALAR":
-            return 1;
+            return GLTFType.SCALAR;
         case "VEC2":
-            return 2;
+            return GLTFType.VEC2;
         case "VEC3":
-            return 3;
+            return GLTFType.VEC3;
         case "VEC4":
-            return 4;
+            return GLTFType.VEC4;
+        case "MAT2":
+            return GLTFType.MAT2;
+        case "MAT3":
+            return GLTFType.MAT3;
+        case "MAT4":
+            return GLTFType.MAT4;
         default:
             throw Error(`Unhandled glTF Type ${type}`);
     }
 }
 
+function gltfTypeNumComponents(type) {
+    switch (type) {
+        case GLTFType.SCALAR:
+            return 1;
+        case GLTFType.VEC2:
+            return 2;
+        case GLTFType.VEC3:
+            return 3;
+        case GLTFType.VEC4:
+        case GLTFType.MAT2:
+            return 4;
+        case GLTFType.MAT3:
+            return 9;
+        case GLTFType.MAT4:
+            return 16;
+        default:
+            throw Error(`Invalid glTF Type ${type}`);
+    }
+}
+
 // Note: only returns non-normalized type names,
 // so byte/ubyte = sint8/uint8, not snorm8/unorm8, same for ushort
-function gltfTypeToWebGPU(componentType, type) {
+function gltfVertexType(componentType, type) {
     var typeStr = null;
     switch (componentType) {
         case GLTFComponentType.BYTE:
@@ -85,36 +122,36 @@ function gltfTypeToWebGPU(componentType, type) {
 }
 
 function gltfTypeSize(componentType, type) {
-    var typeSize = 0;
+    var componentSize = 0;
     switch (componentType) {
         case GLTFComponentType.BYTE:
-            typeSize = 1;
+            componentSize = 1;
             break;
         case GLTFComponentType.UNSIGNED_BYTE:
-            typeSize = 1;
+            componentSize = 1;
             break;
         case GLTFComponentType.SHORT:
-            typeSize = 2;
+            componentSize = 2;
             break;
         case GLTFComponentType.UNSIGNED_SHORT:
-            typeSize = 2;
+            componentSize = 2;
             break;
         case GLTFComponentType.INT:
-            typeSize = 4;
+            componentSize = 4;
             break;
         case GLTFComponentType.UNSIGNED_INT:
-            typeSize = 4;
+            componentSize = 4;
             break;
         case GLTFComponentType.FLOAT:
-            typeSize = 4;
+            componentSize = 4;
             break;
         case GLTFComponentType.DOUBLE:
-            typeSize = 4;
+            componentSize = 8;
             break;
         default:
             throw Error("Unrecognized GLTF Component Type?");
     }
-    return gltfTypeNumComponents(type) * typeSize;
+    return gltfTypeNumComponents(type) * componentSize;
 }
 
 export class GLTFBuffer {
@@ -169,8 +206,7 @@ export class GLTFAccessor {
     constructor(view, accessor) {
         this.count = accessor["count"];
         this.componentType = accessor["componentType"];
-        this.gltfType = accessor["type"];
-        this.webGpuType = gltfTypeToWebGPU(this.componentType, this.gltfType);
+        this.gltfType = parseGltfType(accessor["type"]);
         this.view = view;
         this.byteOffset = 0;
         if (accessor["byteOffset"] !== undefined) {
@@ -215,7 +251,7 @@ export class GLTFPrimitive {
                     // detect this case right now, and just take each buffer independently
                     // and apply the offst (per-element or absolute) in setVertexBuffer.
                     {
-                        format: this.positions.webGpuType,
+                        format: gltfVertexType(this.positions.componentType, this.positions.gltfType),
                         offset: 0,
                         shaderLocation: 0
                     }
@@ -236,7 +272,8 @@ export class GLTFPrimitive {
         var primitive = {topology: "triangle-list"};
         if (this.topology == GLTFRenderMode.TRIANGLE_STRIP) {
             primitive.topology = "triangle-strip";
-            primitive.stripIndexFormat = this.indices.webGpuType;
+            primitive.stripIndexFormat =
+                gltfVertexType(this.indices.componentType, this.indices.gltfType);
         }
 
         var layout = device.createPipelineLayout({bindGroupLayouts: [uniformsBGLayout]});
@@ -266,7 +303,7 @@ export class GLTFPrimitive {
 
         if (this.indices) {
             renderPassEncoder.setIndexBuffer(this.indices.view.gpuBuffer,
-                this.indices.webGpuType,
+                gltfVertexType(this.indices.componentType, this.indices.gltfType),
                 this.indices.byteOffset,
                 this.indices.length);
             renderPassEncoder.drawIndexed(this.indices.count);
@@ -356,13 +393,9 @@ export async function uploadGLB(buffer, device) {
     // may have a MAT4 accessor, which we currently don't support.
     var accessors = [];
     for (var i = 0; i < jsonChunk.accessors.length; ++i) {
-        try {
-            var accessorInfo = jsonChunk.accessors[i];
-            var viewID = accessorInfo["bufferView"];
-            accessors.push(new GLTFAccessor(bufferViews[viewID], accessorInfo));
-        } catch (e) {
-            console.log(`Skipping accessor for unhandled type ${e}`);
-        }
+        var accessorInfo = jsonChunk.accessors[i];
+        var viewID = accessorInfo["bufferView"];
+        accessors.push(new GLTFAccessor(bufferViews[viewID], accessorInfo));
     }
 
     console.log(`glTF file has ${jsonChunk.meshes.length} meshes`);
