@@ -33,5 +33,5 @@ with open(glbFile, "rb") as f:
 
     # Now read the JSON chunk out of the file and print it to show the glB JSON header
     jsonChunk = json.loads(content[20:20+header[3]]);
-    print(json.dumps(jsonChunk, indent=4))
+    print(json.dumps(jsonChunk, indent=2))
 
