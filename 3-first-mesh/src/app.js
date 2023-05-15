@@ -67,16 +67,16 @@ import {uploadGLB} from "./glb";
     });
 
     // Load the packaged GLB file, Avocado.glb
-    var glbPrim = await fetch(avocadoGlb)
+    var glbMesh = await fetch(avocadoGlb)
         .then(res => res.arrayBuffer()).then(buf => uploadGLB(buf, device));
 
-    glbPrim.buildRenderPipeline(device,
+    glbMesh.buildRenderPipeline(device,
         shaderModule,
         swapChainFormat,
         depthFormat,
         bindGroupLayout);
 
-    console.log(glbPrim);
+    console.log(glbMesh);
 
     // Setup onchange listener for file uploads
     document.getElementById("uploadGLB").onchange =
@@ -87,14 +87,14 @@ import {uploadGLB} from "./glb";
                 throw Error("Error reading GLB file");
             };
             reader.onload = function () {
-                uploadGLB(reader.result, device).then((prim) => {
-                    glbPrim = prim;
-                    glbPrim.buildRenderPipeline(device,
+                uploadGLB(reader.result, device).then((mesh) => {
+                    glbMesh = mesh;
+                    glbMesh.buildRenderPipeline(device,
                         shaderModule,
                         swapChainFormat,
                         depthFormat,
                         bindGroupLayout);
-                    console.log(glbPrim);
+                    console.log(glbMesh);
                 });
             };
             if (this.files[0]) {
@@ -176,7 +176,7 @@ import {uploadGLB} from "./glb";
 
         var renderPass = commandEncoder.beginRenderPass(renderPassDesc);
 
-        glbPrim.render(renderPass, viewParamBG);
+        glbMesh.render(renderPass, viewParamBG);
 
         renderPass.end();
         device.queue.submit([commandEncoder.finish()]);
