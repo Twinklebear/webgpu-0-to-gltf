@@ -128,15 +128,19 @@ export class GLTFBuffer {
 export class GLTFBufferView {
     constructor(buffer, view) {
         this.length = view["byteLength"];
-        this.byteOffset = buffer.byteOffset;
-        if (view["byteOffset"] !== undefined) {
-            this.byteOffset += view["byteOffset"];
-        }
         this.byteStride = 0;
         if (view["byteStride"] !== undefined) {
             this.byteStride = view["byteStride"];
         }
-        this.buffer = new Uint8Array(buffer.arrayBuffer, this.byteOffset, this.length);
+        // Note: We do not use the byte offset after creating the buffer view,
+        // because the offset is baked into the view created for this.buffer
+        this.byteOffset = 0;
+        // The view starts at view["byteOffset"] from the start of the
+        // binary chunk in the glB file. We need to also apply the glB binary
+        // chunk's offset here when creating the view of the underlying ArrayBuffer,
+        // since this buffer corresponds to our entire glB file.
+        var viewStart = buffer.byteOffset + view["byteOffset"];
+        this.buffer = new Uint8Array(buffer.arrayBuffer, viewStart, this.length);
 
         this.needsUpload = false;
         this.gpuBuffer = null;
@@ -198,11 +202,23 @@ export class GLTFPrimitive {
             buffers: [{
                 arrayStride: this.positions.byteStride,
                 attributes: [
-                    // We do not pass offset here, the offset here is relative to the start of
-                    // each attribute element within the arrayStride byte element. This is
-                    // useful for interleaved vertex buffers, which we do not have.
-                    // We will set the offset in setVertexBuffer.
-                    {format: this.positions.webGpuType, offset: 0, shaderLocation: 0},
+                    // Note: We do not pass the positions.byteOffset here, as its
+                    // meaning can vary in different glB files, i.e., if it's being used
+                    // for an interleaved element offset or an absolute offset.
+                    //
+                    // Setting the offset here for the attribute requires it to be <= byteStride,
+                    // as would be the case for an interleaved vertex buffer.
+                    //
+                    // Offsets for interleaved elements can be passed here if we find
+                    // a single buffer is being referenced by multiple attributes and
+                    // the offsets fit within the byteStride. For simplicity we do not
+                    // detect this case right now, and just take each buffer independently
+                    // and apply the offst (per-element or absolute) in setVertexBuffer.
+                    {
+                        format: this.positions.webGpuType,
+                        offset: 0,
+                        shaderLocation: 0
+                    }
                 ]
             }]
         };
@@ -238,6 +254,11 @@ export class GLTFPrimitive {
         renderPassEncoder.setPipeline(this.renderPipeline);
         renderPassEncoder.setBindGroup(0, uniformsBG);
 
+        // Apply the view's byteOffset here to handle both global and interleaved
+        // offsets for the buffer. Setting the offset here allows handling both cases,
+        // with the downside that we must repeatedly bind the same buffer at different
+        // offsets if we're dealing with interleaved attributes.
+        // Since we only handle positions at the moment, this isn't a problem.
         renderPassEncoder.setVertexBuffer(0,
             this.positions.view.gpuBuffer,
             this.positions.byteOffset,
