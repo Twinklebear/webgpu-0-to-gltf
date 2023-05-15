@@ -1,4 +1,5 @@
 alias float4 = vec4<f32>;
+alias float3 = vec3<f32>;
 
 struct VertexInput {
     @location(0) position: float4,
@@ -6,6 +7,7 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) position: float4,
+    @location(0) world_pos: float3,
 };
 
 struct ViewParams {
@@ -19,10 +21,14 @@ var<uniform> view_params: ViewParams;
 fn vertex_main(vert: VertexInput) -> VertexOutput {
     var out: VertexOutput;
     out.position = view_params.view_proj * vert.position;
+    out.world_pos = vert.position.xyz;
     return out;
 };
 
 @fragment
 fn fragment_main(in: VertexOutput) -> @location(0) float4 {
-    return float4(1.0);
+    let dx = dpdx(in.world_pos);
+    let dy = dpdy(in.world_pos);
+    let n = normalize(cross(dx, dy));
+    return float4((n + 1.0) * 0.5, 1.0);
 }
