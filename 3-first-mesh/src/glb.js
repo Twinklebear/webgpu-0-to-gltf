@@ -350,6 +350,14 @@ export async function uploadGLB(buffer, device) {
         bufferViews.push(new GLTFBufferView(binaryChunk, jsonChunk.bufferViews[i]));
     }
 
+    // Create GLTFAccessor objects for the accessors in the glTF file
+    var accessors = [];
+    for (var i = 0; i < jsonChunk.accessors.length; ++i) {
+        var accessorInfo = jsonChunk.accessors[i];
+        var viewID = accessorInfo["bufferView"];
+        accessors.push(new GLTFAccessor(bufferViews[viewID], accessorInfo));
+    }
+
     console.log(`glTF file has ${jsonChunk.meshes.length} meshes`);
     // Load the first mesh
     var mesh = jsonChunk.meshes[0];
@@ -368,28 +376,30 @@ export async function uploadGLB(buffer, device) {
 
         var indices = null;
         if (jsonChunk["accessors"][prim["indices"]] !== undefined) {
-            var accessor = jsonChunk["accessors"][prim["indices"]];
-            var viewID = accessor["bufferView"];
-            bufferViews[viewID].needsUpload = true;
-            bufferViews[viewID].addUsage(GPUBufferUsage.INDEX);
-            indices = new GLTFAccessor(bufferViews[viewID], accessor);
+            var accessor = accessors[prim["indices"]];
+            accessor.view.needsUpload = true;
+            accessor.view.addUsage(GPUBufferUsage.INDEX);
+            indices = accessor;
         }
 
+        // Loop through all the attributes to find the POSITION attribute.
+        // While we only want the position attribute right now, we'll load
+        // the others later as well.
         var positions = null;
         for (var attr in prim["attributes"]) {
-            var accessor = jsonChunk["accessors"][prim["attributes"][attr]];
-            var viewID = accessor["bufferView"];
-            bufferViews[viewID].needsUpload = true;
-            bufferViews[viewID].addUsage(GPUBufferUsage.VERTEX);
+            var accessor = accessors[prim["attributes"][attr]];
+            accessor.view.needsUpload = true;
+            accessor.view.addUsage(GPUBufferUsage.VERTEX);
             if (attr == "POSITION") {
-                positions = new GLTFAccessor(bufferViews[viewID], accessor);
+                positions = accessor;
             }
         }
 
+        // Add the primitive to the mesh's list of primitives
         meshPrimitives.push(new GLTFPrimitive(indices, positions, topology));
     }
 
-    // Upload the different views used by mesh
+    // Upload the buffer views used by mesh
     for (var i = 0; i < bufferViews.length; ++i) {
         if (bufferViews[i].needsUpload) {
             bufferViews[i].upload(device);
