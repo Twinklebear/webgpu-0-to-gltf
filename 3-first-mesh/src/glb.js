@@ -351,11 +351,18 @@ export async function uploadGLB(buffer, device) {
     }
 
     // Create GLTFAccessor objects for the accessors in the glTF file
+    // We need to handle possible errors being thrown here if a model is using
+    // accessors for types we don't support yet. For example, a model with animation
+    // may have a MAT4 accessor, which we currently don't support.
     var accessors = [];
     for (var i = 0; i < jsonChunk.accessors.length; ++i) {
-        var accessorInfo = jsonChunk.accessors[i];
-        var viewID = accessorInfo["bufferView"];
-        accessors.push(new GLTFAccessor(bufferViews[viewID], accessorInfo));
+        try {
+            var accessorInfo = jsonChunk.accessors[i];
+            var viewID = accessorInfo["bufferView"];
+            accessors.push(new GLTFAccessor(bufferViews[viewID], accessorInfo));
+        } catch (e) {
+            console.log(`Skipping accessor for unhandled type ${e}`);
+        }
     }
 
     console.log(`glTF file has ${jsonChunk.meshes.length} meshes`);
