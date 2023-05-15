@@ -27,17 +27,16 @@ function alignTo(val, align) {
 
 function gltfTypeNumComponents(type) {
     switch (type) {
-        case 'SCALAR':
+        case "SCALAR":
             return 1;
-        case 'VEC2':
+        case "VEC2":
             return 2;
-        case 'VEC3':
+        case "VEC3":
             return 3;
-        case 'VEC4':
+        case "VEC4":
             return 4;
         default:
-            alert('Unhandled glTF Type ' + type);
-            return null;
+            throw Error(`Unhandled glTF Type ${type}`);
     }
 }
 
@@ -47,25 +46,25 @@ function gltfTypeToWebGPU(componentType, type) {
     var typeStr = null;
     switch (componentType) {
         case GLTFComponentType.BYTE:
-            typeStr = 'sint8';
+            typeStr = "sint8";
             break;
         case GLTFComponentType.UNSIGNED_BYTE:
-            typeStr = 'uint8';
+            typeStr = "uint8";
             break;
         case GLTFComponentType.SHORT:
-            typeStr = 'sint16';
+            typeStr = "sint16";
             break;
         case GLTFComponentType.UNSIGNED_SHORT:
-            typeStr = 'uint16';
+            typeStr = "uint16";
             break;
         case GLTFComponentType.INT:
-            typeStr = 'int32';
+            typeStr = "int32";
             break;
         case GLTFComponentType.UNSIGNED_INT:
-            typeStr = 'uint32';
+            typeStr = "uint32";
             break;
         case GLTFComponentType.FLOAT:
-            typeStr = 'float32';
+            typeStr = "float32";
             break;
         default:
             throw Error(`Unrecognized or unsupported glTF type ${componentType}`);
@@ -75,11 +74,11 @@ function gltfTypeToWebGPU(componentType, type) {
         case 1:
             return typeStr;
         case 2:
-            return typeStr + 'x2';
+            return typeStr + "x2";
         case 3:
-            return typeStr + 'x3';
+            return typeStr + "x3";
         case 4:
-            return typeStr + 'x4';
+            return typeStr + "x4";
         default:
             throw Error(`Invalid number of components for gltfType: ${type}`);
     }
@@ -113,7 +112,7 @@ function gltfTypeSize(componentType, type) {
             typeSize = 4;
             break;
         default:
-            alert('Unrecognized GLTF Component Type?');
+            throw Error("Unrecognized GLTF Component Type?");
     }
     return gltfTypeNumComponents(type) * typeSize;
 }
@@ -128,14 +127,14 @@ export class GLTFBuffer {
 
 export class GLTFBufferView {
     constructor(buffer, view) {
-        this.length = view['byteLength'];
+        this.length = view["byteLength"];
         this.byteOffset = buffer.byteOffset;
-        if (view['byteOffset'] !== undefined) {
-            this.byteOffset += view['byteOffset'];
+        if (view["byteOffset"] !== undefined) {
+            this.byteOffset += view["byteOffset"];
         }
         this.byteStride = 0;
-        if (view['byteStride'] !== undefined) {
-            this.byteStride = view['byteStride'];
+        if (view["byteStride"] !== undefined) {
+            this.byteStride = view["byteStride"];
         }
         this.buffer = new Uint8Array(buffer.arrayBuffer, this.byteOffset, this.length);
 
@@ -164,14 +163,14 @@ export class GLTFBufferView {
 
 export class GLTFAccessor {
     constructor(view, accessor) {
-        this.count = accessor['count'];
-        this.componentType = accessor['componentType'];
-        this.gltfType = accessor['type'];
+        this.count = accessor["count"];
+        this.componentType = accessor["componentType"];
+        this.gltfType = accessor["type"];
         this.webGpuType = gltfTypeToWebGPU(this.componentType, this.gltfType);
         this.view = view;
         this.byteOffset = 0;
-        if (accessor['byteOffset'] !== undefined) {
-            this.byteOffset = accessor['byteOffset'];
+        if (accessor["byteOffset"] !== undefined) {
+            this.byteOffset = accessor["byteOffset"];
         }
     }
 
@@ -218,9 +217,9 @@ export class GLTFPrimitive {
 
         // Our loader only supports triangle lists and strips, so by default we set
         // the primitive topology to triangle list, and check if it's instead a triangle strip
-        var primitive = {topology: 'triangle-list'};
+        var primitive = {topology: "triangle-list"};
         if (this.topology == GLTFRenderMode.TRIANGLE_STRIP) {
-            primitive.topology = 'triangle-strip';
+            primitive.topology = "triangle-strip";
             primitive.stripIndexFormat = this.indices.webGpuType;
         }
 
@@ -256,6 +255,33 @@ export class GLTFPrimitive {
     }
 }
 
+export class GLTFMesh {
+    constructor(name, primitives) {
+        this.name = name;
+        this.primitives = primitives;
+    }
+
+    buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout) {
+        // We take a pretty simple approach to start. Just loop through all the primitives and
+        // build their respective render pipelines
+        for (var i = 0; i < this.primitives.length; ++i) {
+            this.primitives[i].buildRenderPipeline(device,
+                shaderModule,
+                colorFormat,
+                depthFormat,
+                uniformsBGLayout);
+        }
+    }
+
+    render(renderPassEncoder, uniformsBG) {
+        // We take a pretty simple approach to start. Just loop through all the primitives and
+        // call their individual draw methods
+        for (var i = 0; i < this.primitives.length; ++i) {
+            this.primitives[i].render(renderPassEncoder, uniformsBG);
+        }
+    }
+}
+
 // Upload a GLB model and return it
 export async function uploadGLB(buffer, device) {
     document.getElementById("loading-text").hidden = false;
@@ -272,28 +298,24 @@ export async function uploadGLB(buffer, device) {
     // - chunkType: u32 (expect: 0x4E4F534A for the JSON chunk)
     var header = new Uint32Array(buffer, 0, 5);
     if (header[0] != 0x46546C67) {
-        alert("The provided file does not appear to be a glB file");
         throw Error("Provided file is not a glB file")
     }
     if (header[1] != 2) {
-        alert("The provided file is not glTF version 2");
         throw Error("Provided file is glTF 2.0 file");
     }
     if (header[4] != 0x4E4F534A) {
-        alert("Invalid glB: The first chunk of the glB file is not a JSON chunk!");
         throw Error("Invalid glB: The first chunk of the glB file is not a JSON chunk!");
     }
 
     // Parse the JSON chunk of the glB file to a JSON object
     var jsonChunk =
-        JSON.parse(new TextDecoder('utf-8').decode(new Uint8Array(buffer, 20, header[3])));
+        JSON.parse(new TextDecoder("utf-8").decode(new Uint8Array(buffer, 20, header[3])));
 
     // Read the binary chunk header
     // - chunkLength: u32 (size of the chunk, in bytes)
     // - chunkType: u32 (expect: 0x46546C67 for the binary chunk)
     var binaryHeader = new Uint32Array(buffer, 20 + header[3], 2);
     if (binaryHeader[1] != 0x004E4942) {
-        alert("Invalid glB: The second chunk of the glB file is not a binary chunk!");
         throw Error("Invalid glB: The second chunk of the glB file is not a binary chunk!");
     }
     // Make a GLTFBuffer that is a view of the entire binary chunk's data,
@@ -307,42 +329,44 @@ export async function uploadGLB(buffer, device) {
         bufferViews.push(new GLTFBufferView(binaryChunk, jsonChunk.bufferViews[i]));
     }
 
+    console.log(`glTF file has ${jsonChunk.meshes.length} meshes`);
     // Load the first mesh
     var mesh = jsonChunk.meshes[0];
-    var prim = mesh.primitives[0];
-    var topology = prim['mode'];
-    // Default is triangles if mode specified
-    if (topology === undefined) {
-        topology = GLTFRenderMode.TRIANGLES;
-    }
-    if (topology != GLTFRenderMode.TRIANGLES &&
-        topology != GLTFRenderMode.TRIANGLE_STRIP) {
-        alert('Ignoring primitive with unsupported mode ' + prim['mode']);
-        throw Error('Unsupported primitive mode');
-    }
-
-    var indices = null;
-    if (jsonChunk['accessors'][prim['indices']] !== undefined) {
-        var accessor = jsonChunk['accessors'][prim['indices']];
-        var viewID = accessor['bufferView'];
-        bufferViews[viewID].needsUpload = true;
-        bufferViews[viewID].addUsage(GPUBufferUsage.INDEX);
-        indices = new GLTFAccessor(bufferViews[viewID], accessor);
-    }
-
-    var positions = null;
-    for (var attr in prim['attributes']) {
-        var accessor = jsonChunk['accessors'][prim['attributes'][attr]];
-        var viewID = accessor['bufferView'];
-        bufferViews[viewID].needsUpload = true;
-        bufferViews[viewID].addUsage(GPUBufferUsage.VERTEX);
-        if (attr == 'POSITION') {
-            positions = new GLTFAccessor(bufferViews[viewID], accessor);
+    var meshPrimitives = [];
+    for (var i = 0; i < mesh.primitives.length; ++i) {
+        var prim = mesh.primitives[i];
+        var topology = prim["mode"];
+        // Default is triangles if mode specified
+        if (topology === undefined) {
+            topology = GLTFRenderMode.TRIANGLES;
         }
-    }
+        if (topology != GLTFRenderMode.TRIANGLES &&
+            topology != GLTFRenderMode.TRIANGLE_STRIP) {
+            throw Error(`Unsupported primitive mode ${prim["mode"]}`);
+        }
 
-    var gltfPrim =
-        new GLTFPrimitive(indices, positions, topology);
+        var indices = null;
+        if (jsonChunk["accessors"][prim["indices"]] !== undefined) {
+            var accessor = jsonChunk["accessors"][prim["indices"]];
+            var viewID = accessor["bufferView"];
+            bufferViews[viewID].needsUpload = true;
+            bufferViews[viewID].addUsage(GPUBufferUsage.INDEX);
+            indices = new GLTFAccessor(bufferViews[viewID], accessor);
+        }
+
+        var positions = null;
+        for (var attr in prim["attributes"]) {
+            var accessor = jsonChunk["accessors"][prim["attributes"][attr]];
+            var viewID = accessor["bufferView"];
+            bufferViews[viewID].needsUpload = true;
+            bufferViews[viewID].addUsage(GPUBufferUsage.VERTEX);
+            if (attr == "POSITION") {
+                positions = new GLTFAccessor(bufferViews[viewID], accessor);
+            }
+        }
+
+        meshPrimitives.push(new GLTFPrimitive(indices, positions, topology));
+    }
 
     // Upload the different views used by mesh
     for (var i = 0; i < bufferViews.length; ++i) {
@@ -351,6 +375,8 @@ export async function uploadGLB(buffer, device) {
         }
     }
     document.getElementById("loading-text").hidden = true;
-    return gltfPrim;
+
+    console.log(`Mesh ${mesh["name"]} has ${meshPrimitives.length} primitives`);
+    return new GLTFMesh(mesh["name"], meshPrimitives);
 }
 

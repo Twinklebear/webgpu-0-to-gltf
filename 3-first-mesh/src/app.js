@@ -77,7 +77,7 @@ import {uploadGLB} from "./glb";
             document.getElementById("loading-text").hidden = false;
             var reader = new FileReader();
             reader.onerror = function () {
-                alert("error reading GLB file");
+                throw Error("Error reading GLB file");
             };
             reader.onload = function () {
                 uploadGLB(reader.result, device).then((prim) => {
@@ -95,7 +95,7 @@ import {uploadGLB} from "./glb";
     var camera =
         new ArcballCamera([0, 0, 0.2], [0, 0, 0], [0, 1, 0], 0.5, [canvas.width, canvas.height]);
     var proj = mat4.perspective(
-        mat4.create(), 50 * Math.PI / 180.0, canvas.width / canvas.height, 0.01, 10);
+        mat4.create(), 50 * Math.PI / 180.0, canvas.width / canvas.height, 0.01, 1000);
     var projView = mat4.create();
 
     // Register mouse and touch listeners
