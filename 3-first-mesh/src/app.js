@@ -67,8 +67,15 @@ import {uploadGLB} from "./glb";
     });
 
     // Load the packaged GLB file, Avocado.glb
-    var glbPrim = await fetch(avocadoGlb).then(res => res.arrayBuffer()).then(buf => uploadGLB(buf, device));
-    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
+    var glbPrim = await fetch(avocadoGlb)
+        .then(res => res.arrayBuffer()).then(buf => uploadGLB(buf, device));
+
+    glbPrim.buildRenderPipeline(device,
+        shaderModule,
+        swapChainFormat,
+        depthFormat,
+        bindGroupLayout);
+
     console.log(glbPrim);
 
     // Setup onchange listener for file uploads
@@ -82,7 +89,11 @@ import {uploadGLB} from "./glb";
             reader.onload = function () {
                 uploadGLB(reader.result, device).then((prim) => {
                     glbPrim = prim;
-                    glbPrim.buildRenderPipeline(device, shaderModule, swapChainFormat, depthFormat, bindGroupLayout);
+                    glbPrim.buildRenderPipeline(device,
+                        shaderModule,
+                        swapChainFormat,
+                        depthFormat,
+                        bindGroupLayout);
                     console.log(glbPrim);
                 });
             };
