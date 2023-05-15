@@ -341,7 +341,7 @@ export class GLTFMesh {
 }
 
 // Upload a GLB model and return it
-export async function uploadGLB(buffer, device) {
+export function uploadGLB(buffer, device) {
     document.getElementById("loading-text").hidden = false;
     // glB has a JSON chunk and a binary chunk, potentially followed by
     // other chunks specifying extension specific data, which we ignore
