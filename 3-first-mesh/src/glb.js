@@ -155,7 +155,7 @@ function gltfTypeSize(componentType, type) {
 }
 
 export class GLTFBuffer {
-    constructor(buffer, size, offset) {
+    constructor(buffer, offset, size) {
         this.buffer = new Uint8Array(buffer, offset, size);
     }
 }
@@ -375,7 +375,7 @@ export function uploadGLB(buffer, device) {
     // Make a GLTFBuffer that is a view of the entire binary chunk's data,
     // we'll use this to create buffer views within the chunk for memory referenced
     // by objects in the glTF scene
-    var binaryChunk = new GLTFBuffer(buffer, binaryHeader[0], 28 + header[3]);
+    var binaryChunk = new GLTFBuffer(buffer, 28 + header[3], binaryHeader[0]);
 
     // Create GLTFBufferView objects for all the buffer views in the glTF file
     var bufferViews = [];
