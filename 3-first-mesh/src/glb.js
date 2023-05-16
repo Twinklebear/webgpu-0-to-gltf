@@ -156,9 +156,7 @@ function gltfTypeSize(componentType, type) {
 
 export class GLTFBuffer {
     constructor(buffer, size, offset) {
-        this.arrayBuffer = buffer;
-        this.size = size;
-        this.byteOffset = offset;
+        this.buffer = new Uint8Array(buffer, offset, size);
     }
 }
 
@@ -172,12 +170,10 @@ export class GLTFBufferView {
         // Note: We do not use the byte offset after creating the buffer view,
         // because the offset is baked into the view created for this.buffer
         this.byteOffset = 0;
-        // The view starts at view["byteOffset"] from the start of the
-        // binary chunk in the glB file. We need to also apply the glB binary
-        // chunk's offset here when creating the view of the underlying ArrayBuffer,
-        // since this buffer corresponds to our entire glB file.
-        var viewStart = buffer.byteOffset + view["byteOffset"];
-        this.buffer = new Uint8Array(buffer.arrayBuffer, viewStart, this.length);
+        // Create the buffer view. Note that subarray creates a new typed
+        // view over the same array buffer, we do not make a copy here.
+        this.buffer = buffer.buffer.subarray(view["byteOffset"],
+            view["byteOffset"] + this.length);
 
         this.needsUpload = false;
         this.gpuBuffer = null;

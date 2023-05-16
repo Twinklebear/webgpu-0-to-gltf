@@ -87,15 +87,13 @@ import {uploadGLB} from "./glb";
                 throw Error("Error reading GLB file");
             };
             reader.onload = function () {
-                uploadGLB(reader.result, device).then((mesh) => {
-                    glbMesh = mesh;
-                    glbMesh.buildRenderPipeline(device,
-                        shaderModule,
-                        swapChainFormat,
-                        depthFormat,
-                        bindGroupLayout);
-                    console.log(glbMesh);
-                });
+                glbMesh = uploadGLB(reader.result, device)
+                glbMesh.buildRenderPipeline(device,
+                    shaderModule,
+                    swapChainFormat,
+                    depthFormat,
+                    bindGroupLayout);
+                console.log(glbMesh);
             };
             if (this.files[0]) {
                 reader.readAsArrayBuffer(this.files[0]);
