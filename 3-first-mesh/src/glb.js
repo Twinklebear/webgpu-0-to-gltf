@@ -167,9 +167,6 @@ export class GLTFBufferView {
         if (view["byteStride"] !== undefined) {
             this.byteStride = view["byteStride"];
         }
-        // Note: We do not use the byte offset after creating the buffer view,
-        // because the offset is baked into the view created for this.buffer
-        this.byteOffset = 0;
         // Create the buffer view. Note that subarray creates a new typed
         // view over the same array buffer, we do not make a copy here.
         var viewOffset = 0;
