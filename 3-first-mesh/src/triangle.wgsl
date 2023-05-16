@@ -2,7 +2,7 @@ alias float4 = vec4<f32>;
 alias float3 = vec3<f32>;
 
 struct VertexInput {
-    @location(0) position: float4,
+    @location(0) position: float3,
 };
 
 struct VertexOutput {
@@ -20,7 +20,7 @@ var<uniform> view_params: ViewParams;
 @vertex
 fn vertex_main(vert: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = view_params.view_proj * vert.position;
+    out.position = view_params.view_proj * float4(vert.position, 1.0);
     out.world_pos = vert.position.xyz;
     return out;
 };
