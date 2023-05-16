@@ -214,6 +214,11 @@ export class GLTFAccessor {
         var elementSize = gltfTypeSize(this.componentType, this.gltfType);
         return Math.max(elementSize, this.view.byteStride);
     }
+
+    // Get the vertex attribute type for accessors that are used as vertex attributes
+    get vertexType() {
+        return gltfVertexType(this.componentType, this.gltfType);
+    }
 }
 
 export class GLTFPrimitive {
@@ -255,7 +260,7 @@ export class GLTFPrimitive {
                     // detect this case right now, and just take each buffer independently
                     // and apply the offst (per-element or absolute) in setVertexBuffer.
                     {
-                        format: gltfVertexType(this.positions.componentType, this.positions.gltfType),
+                        format: this.positions.vertexType,
                         offset: 0,
                         shaderLocation: 0
                     }
@@ -276,8 +281,7 @@ export class GLTFPrimitive {
         var primitive = {topology: "triangle-list"};
         if (this.topology == GLTFRenderMode.TRIANGLE_STRIP) {
             primitive.topology = "triangle-strip";
-            primitive.stripIndexFormat =
-                gltfVertexType(this.indices.componentType, this.indices.gltfType);
+            primitive.stripIndexFormat = this.indices.vertexType;
         }
 
         var layout = device.createPipelineLayout({bindGroupLayouts: [uniformsBGLayout]});
@@ -295,7 +299,7 @@ export class GLTFPrimitive {
         renderPassEncoder.setPipeline(this.renderPipeline);
         renderPassEncoder.setBindGroup(0, uniformsBG);
 
-        // Apply the view's byteOffset here to handle both global and interleaved
+        // Apply the accessor's byteOffset here to handle both global and interleaved
         // offsets for the buffer. Setting the offset here allows handling both cases,
         // with the downside that we must repeatedly bind the same buffer at different
         // offsets if we're dealing with interleaved attributes.
@@ -307,7 +311,7 @@ export class GLTFPrimitive {
 
         if (this.indices) {
             renderPassEncoder.setIndexBuffer(this.indices.view.gpuBuffer,
-                gltfVertexType(this.indices.componentType, this.indices.gltfType),
+                this.indices.vertexType,
                 this.indices.byteOffset,
                 this.indices.length);
             renderPassEncoder.drawIndexed(this.indices.count);
