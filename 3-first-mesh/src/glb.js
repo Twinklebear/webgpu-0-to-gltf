@@ -173,7 +173,7 @@ export class GLTFBufferView {
         if (view["byteOffset"] !== undefined) {
             viewOffset = view["byteOffset"];
         }
-        this.buffer = buffer.buffer.subarray(viewOffset, viewOffset + this.length);
+        this.view = buffer.buffer.subarray(viewOffset, viewOffset + this.length);
 
         this.needsUpload = false;
         this.gpuBuffer = null;
@@ -187,11 +187,11 @@ export class GLTFBufferView {
     upload(device) {
         // Note: must align to 4 byte size when mapped at creation is true
         var buf = device.createBuffer({
-            size: alignTo(this.buffer.byteLength, 4),
+            size: alignTo(this.view.byteLength, 4),
             usage: this.usage,
             mappedAtCreation: true
         });
-        new (this.buffer.constructor)(buf.getMappedRange()).set(this.buffer);
+        new (this.view.constructor)(buf.getMappedRange()).set(this.view);
         buf.unmap();
         this.gpuBuffer = buf;
         this.needsUpload = false;
@@ -217,11 +217,19 @@ export class GLTFAccessor {
 }
 
 export class GLTFPrimitive {
-    constructor(indices, positions, topology) {
-        this.indices = indices;
+    constructor(positions, indices, topology) {
         this.positions = positions;
+        this.indices = indices;
         this.topology = topology;
         this.renderPipeline = null;
+
+        this.positions.view.needsUpload = true;
+        this.positions.view.addUsage(GPUBufferUsage.VERTEX);
+
+        if (this.indices) {
+            this.indices.view.needsUpload = true;
+            this.indices.view.addUsage(GPUBufferUsage.INDEX);
+        }
     }
 
     buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout) {
@@ -412,10 +420,7 @@ export function uploadGLB(buffer, device) {
 
         var indices = null;
         if (jsonChunk["accessors"][prim["indices"]] !== undefined) {
-            var accessor = accessors[prim["indices"]];
-            accessor.view.needsUpload = true;
-            accessor.view.addUsage(GPUBufferUsage.INDEX);
-            indices = accessor;
+            indices = accessors[prim["indices"]];
         }
 
         // Loop through all the attributes to find the POSITION attribute.
@@ -424,15 +429,13 @@ export function uploadGLB(buffer, device) {
         var positions = null;
         for (var attr in prim["attributes"]) {
             var accessor = accessors[prim["attributes"][attr]];
-            accessor.view.needsUpload = true;
-            accessor.view.addUsage(GPUBufferUsage.VERTEX);
             if (attr == "POSITION") {
                 positions = accessor;
             }
         }
 
         // Add the primitive to the mesh's list of primitives
-        meshPrimitives.push(new GLTFPrimitive(indices, positions, topology));
+        meshPrimitives.push(new GLTFPrimitive(positions, indices, topology));
     }
 
     // Upload the buffer views used by mesh
