@@ -172,8 +172,11 @@ export class GLTFBufferView {
         this.byteOffset = 0;
         // Create the buffer view. Note that subarray creates a new typed
         // view over the same array buffer, we do not make a copy here.
-        this.buffer = buffer.buffer.subarray(view["byteOffset"],
-            view["byteOffset"] + this.length);
+        var viewOffset = 0;
+        if (view["byteOffset"] !== undefined) {
+            viewOffset = view["byteOffset"];
+        }
+        this.buffer = buffer.buffer.subarray(viewOffset, viewOffset + this.length);
 
         this.needsUpload = false;
         this.gpuBuffer = null;
