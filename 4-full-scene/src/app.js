@@ -3,7 +3,7 @@ import {mat4} from "gl-matrix";
 import {ArcballCamera} from "arcball_camera";
 import {Controller} from "ez_canvas_controller";
 
-import shaderCode from "./triangle.wgsl";
+import shaderCode from "./glb_prim.wgsl";
 import twoCylinder from "./2CylinderEngine.glb";
 
 import {uploadGLB} from "./glb";
@@ -101,8 +101,9 @@ import {uploadGLB} from "./glb";
         };
 
     // Setup the camera
+    // Pick a far view for the 2CylinderEngine that shows the whole scene
     var camera =
-        new ArcballCamera([0, 0, 0.2], [0, 0, 0], [0, 1, 0], 0.5, [canvas.width, canvas.height]);
+        new ArcballCamera([0, 0, 700], [0, 0, 0], [0, 1, 0], 0.5, [canvas.width, canvas.height]);
     var proj = mat4.perspective(
         mat4.create(), 50 * Math.PI / 180.0, canvas.width / canvas.height, 0.01, 1000);
     var projView = mat4.create();

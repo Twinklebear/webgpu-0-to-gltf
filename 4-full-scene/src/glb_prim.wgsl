@@ -14,13 +14,20 @@ struct ViewParams {
     view_proj: mat4x4<f32>,
 };
 
+struct NodeParams {
+    transform: mat4x4<f32>,
+};
+
 @group(0) @binding(0)
 var<uniform> view_params: ViewParams;
+
+@group(1) @binding(0)
+var<uniform> node_params: NodeParams;
 
 @vertex
 fn vertex_main(vert: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = view_params.view_proj * float4(vert.position, 1.0);
+    out.position = view_params.view_proj * node_params.transform * float4(vert.position, 1.0);
     out.world_pos = vert.position.xyz;
     return out;
 };

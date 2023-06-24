@@ -238,7 +238,7 @@ export class GLTFPrimitive {
         }
     }
 
-    buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout) {
+    buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout, nodeParamsBGLayout) {
         // Vertex attribute state and shader stage
         var vertexState = {
             // Shader stage info
@@ -285,7 +285,7 @@ export class GLTFPrimitive {
             primitive.stripIndexFormat = this.indices.vertexType;
         }
 
-        var layout = device.createPipelineLayout({bindGroupLayouts: [uniformsBGLayout]});
+        var layout = device.createPipelineLayout({bindGroupLayouts: [uniformsBGLayout, nodeParamsBGLayout]});
 
         this.renderPipeline = device.createRenderPipeline({
             layout: layout,
@@ -296,9 +296,8 @@ export class GLTFPrimitive {
         });
     }
 
-    render(renderPassEncoder, uniformsBG) {
+    render(renderPassEncoder) {
         renderPassEncoder.setPipeline(this.renderPipeline);
-        renderPassEncoder.setBindGroup(0, uniformsBG);
 
         // Apply the accessor's byteOffset here to handle both global and interleaved
         // offsets for the buffer. Setting the offset here allows handling both cases,
@@ -328,7 +327,7 @@ export class GLTFMesh {
         this.primitives = primitives;
     }
 
-    buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout) {
+    buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout, nodeParamsBGLayout) {
         // We take a pretty simple approach to start. Just loop through all the primitives and
         // build their respective render pipelines
         for (var i = 0; i < this.primitives.length; ++i) {
@@ -336,15 +335,16 @@ export class GLTFMesh {
                 shaderModule,
                 colorFormat,
                 depthFormat,
-                uniformsBGLayout);
+                uniformsBGLayout,
+                nodeParamsBGLayout);
         }
     }
 
-    render(renderPassEncoder, uniformsBG) {
+    render(renderPassEncoder) {
         // We take a pretty simple approach to start. Just loop through all the primitives and
         // call their individual draw methods
         for (var i = 0; i < this.primitives.length; ++i) {
-            this.primitives[i].render(renderPassEncoder, uniformsBG);
+            this.primitives[i].render(renderPassEncoder);
         }
     }
 }
@@ -357,11 +357,34 @@ export class GLTFNode {
     }
 
     buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout) {
-        this.mesh.buildRenderPipeline(device, shaderModule, colorFormat, depthFormat, uniformsBGLayout);
+        // Upload the node transform
+        this.nodeParamsBuf = device.createBuffer({
+            size: 16 * 4,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+            mappedAtCreation: true
+        });
+        new Float32Array(this.nodeParamsBuf.getMappedRange()).set(this.transform)
+        this.nodeParamsBuf.unmap();
+
+        var bindGroupLayout = device.createBindGroupLayout({
+            entries: [{binding: 0, visibility: GPUShaderStage.VERTEX, buffer: {type: "uniform"}}]
+        });
+        this.nodeParamsBG = device.createBindGroup({
+            layout: bindGroupLayout,
+            entries: [{binding: 0, resource: {buffer: this.nodeParamsBuf}}]
+        });
+
+        this.mesh.buildRenderPipeline(device,
+            shaderModule,
+            colorFormat,
+            depthFormat,
+            uniformsBGLayout,
+            bindGroupLayout);
     }
 
-    render(renderPassEncoder, uniformsBG) {
-        this.mesh.render(renderPassEncoder, uniformsBG);
+    render(renderPassEncoder) {
+        renderPassEncoder.setBindGroup(1, this.nodeParamsBG);
+        this.mesh.render(renderPassEncoder);
     }
 }
 
@@ -377,8 +400,9 @@ export class GLTFScene {
     }
 
     render(renderPassEncoder, uniformsBG) {
+        renderPassEncoder.setBindGroup(0, uniformsBG);
         for (var i = 0; i < this.nodes.length; ++i) {
-            this.nodes[i].render(renderPassEncoder, uniformsBG);
+            this.nodes[i].render(renderPassEncoder);
         }
     }
 }

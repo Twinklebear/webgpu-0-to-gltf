@@ -23,3 +23,7 @@ open Chrome Beta/Canary (or stable once 113 is out) and point it at `localhost:8
 - [Post](https://www.willusher.io/graphics/2023/05/16/0-to-gltf-first-mesh)
 - Code: [3-first-mesh](3-first-mesh)
 
+## Drawing the Full glTF Scene
+
+- Post (writing)
+- Code: [4-full-scene](4-full-scene)
