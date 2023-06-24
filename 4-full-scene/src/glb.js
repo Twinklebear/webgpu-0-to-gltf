@@ -414,7 +414,7 @@ function flattenTree(allNodes, node, parent_transform) {
     var tfm = readNodeTransform(node);
     var tfm = mat4.mul(tfm, parent_transform, tfm);
 
-    // Add the flattened root node
+    // Add the flattened current node
     var n = {
         matrix: tfm,
         mesh: node["mesh"],
@@ -595,7 +595,7 @@ export function uploadGLB(buffer, device) {
         for (var j = 0; j < flattenedNodes.length; ++j) {
             var fn = flattenedNodes[j];
             if (fn["mesh"]) {
-                defaultNodes.push(new GLTFNode(n["name"], readNodeTransform(fn), meshes[fn["mesh"]]));
+                defaultNodes.push(new GLTFNode(n["name"], fn["matrix"], meshes[fn["mesh"]]));
             }
         }
     }
