@@ -575,7 +575,11 @@ export function uploadGLB(buffer, device) {
     }
 
     // Build the default GLTFScene, we just take all the mesh nodes for now
-    var defaultSceneNodes = jsonChunk["scenes"][jsonChunk["scene"]]["nodes"];
+    var defaultSceneNodes = jsonChunk["scenes"][0]["nodes"];
+    // If we have a default scene, load it, otherwise we use the first scene
+    if (jsonChunk["scenes"]) {
+        defaultSceneNodes = jsonChunk["scenes"][jsonChunk["scene"]]["nodes"];
+    }
     var defaultNodes = [];
     for (var i = 0; i < defaultSceneNodes.length; ++i) {
         // Get each node referenced by the scene and flatten it and its children
