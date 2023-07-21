@@ -216,6 +216,10 @@ export class GLTFAccessor {
         return Math.max(elementSize, this.view.byteStride);
     }
 
+    get byteLength() {
+        return this.count * this.byteStride;
+    }
+
     // Get the vertex attribute type for accessors that are used as vertex attributes
     get vertexType() {
         return gltfVertexType(this.componentType, this.gltfType);
@@ -307,13 +311,13 @@ export class GLTFPrimitive {
         renderPassEncoder.setVertexBuffer(0,
             this.positions.view.gpuBuffer,
             this.positions.byteOffset,
-            this.positions.length);
+            this.positions.byteLength);
 
         if (this.indices) {
             renderPassEncoder.setIndexBuffer(this.indices.view.gpuBuffer,
                 this.indices.vertexType,
                 this.indices.byteOffset,
-                this.indices.length);
+                this.indices.byteLength);
             renderPassEncoder.drawIndexed(this.indices.count);
         } else {
             renderPassEncoder.draw(this.positions.count);
