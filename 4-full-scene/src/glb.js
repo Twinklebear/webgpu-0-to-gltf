@@ -30,7 +30,7 @@ const GLTFType = {
     VEC4: 3,
     MAT2: 4,
     MAT3: 5,
-    MAT5: 6
+    MAT4: 6
 };
 
 function alignTo(val, align) {
