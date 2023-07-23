@@ -416,7 +416,8 @@ export class GLTFScene {
 function flattenTree(allNodes, node, parent_transform) {
     var flattened = [];
     var tfm = readNodeTransform(node);
-    var tfm = mat4.mul(tfm, parent_transform, tfm);
+    if (parent_transform != undefined)
+        mat4.mul(tfm, parent_transform, tfm);
 
     // Add the flattened current node
     var n = {
@@ -592,13 +593,12 @@ export function uploadGLB(buffer, device) {
         // TODO: We'll need to put a bit more thought here when we start handling animated nodes
         // in the hierarchy. For now this is fine.
         var n = jsonChunk["nodes"][defaultSceneNodes[i]];
-        var nodeTransform = readNodeTransform(n);
-        var flattenedNodes = flattenTree(jsonChunk["nodes"], n, nodeTransform);
+        var flattenedNodes = flattenTree(jsonChunk["nodes"], n);
 
         // Add all the mesh nodes in the flattened node list to the scene's default nodes
         for (var j = 0; j < flattenedNodes.length; ++j) {
             var fn = flattenedNodes[j];
-            if (fn["mesh"]) {
+            if (fn["mesh"] != undefined) {
                 defaultNodes.push(new GLTFNode(n["name"], fn["matrix"], meshes[fn["mesh"]]));
             }
         }
