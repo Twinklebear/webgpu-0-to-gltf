@@ -16,7 +16,8 @@ open Chrome Beta/Canary (or stable once 113 is out) and point it at `localhost:8
 ## Bind Groups
 
 - [Post](https://www.willusher.io/graphics/2023/04/11/0-to-gltf-bind-groups)
-- Code: [2-bind-groups](2-bind-groups/)
+- JavaScript Code: [2-bind-groups](2-bind-groups/)
+- TypeScript Code: [2-bind-groups-ts](2-bind-groups-ts/)
 
 
 ## The First Mesh
