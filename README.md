@@ -10,7 +10,8 @@ open Chrome Beta/Canary (or stable once 113 is out) and point it at `localhost:8
 ## The First Triangle
 
 - [Post](https://www.willusher.io/graphics/2023/04/10/0-to-gltf-triangle)
-- Code: [1-first-triangle](1-first-triangle/)
+- JavaScript Code: [1-first-triangle](1-first-triangle/)
+- TypeScript Code: [1-first-triangle-ts](1-first-triangle-ts/)
 
 ## Bind Groups
 
