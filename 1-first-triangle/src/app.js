@@ -71,7 +71,7 @@ import shaderCode from "./triangle.wgsl";
 
     var depthFormat = "depth24plus-stencil8";
     var depthTexture = device.createTexture({
-        size: {width: canvas.width, height: canvas.height, depth: 1},
+        size: {width: canvas.width, height: canvas.height, depthOrArrayLayers: 1},
         format: depthFormat,
         usage: GPUTextureUsage.RENDER_ATTACHMENT
     });
