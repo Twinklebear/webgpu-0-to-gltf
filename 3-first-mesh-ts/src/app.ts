@@ -100,8 +100,6 @@ import {uploadGLB} from "./glb_mesh";
                 console.log(glbMesh);
             };
             let picker = evt.target as HTMLInputElement;
-            console.log(picker);
-            console.log(picker.files);
             if (picker.files) {
                 reader.readAsArrayBuffer(picker.files[0]);
             }
