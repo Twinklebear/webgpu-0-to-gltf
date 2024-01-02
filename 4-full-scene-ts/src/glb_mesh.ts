@@ -288,7 +288,7 @@ export class GLTFPrimitive
                 arrayStride: this.positions.byteStride,
                 attributes: [
                     // Note: We do not pass the positions.byteOffset here, as its
-                    // meaning can lety in different glB files, i.e., if it's being used
+                    // meaning can vary in different glB files, i.e., if it's being used
                     // for an interleaved element offset or an absolute offset.
                     //
                     // Setting the offset here for the attribute requires it to be <= byteStride,
