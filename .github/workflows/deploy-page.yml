@@ -17,7 +17,7 @@ jobs:
       # Build each lessons app
       - name: Build App
         run: |
-          for d in `ls -d */`; do
+          for d in `ls -d [0-9]*`; do
             echo "Building $d"
             cd $d
             npm i
@@ -29,7 +29,7 @@ jobs:
       - name: Collect App Dists
         run: |
           mkdir dist
-          for d in `ls -d */`; do
+          for d in `ls -d [0-9]*`; do
             echo "Collecting $d"
             cp -r $d/dist dist/$d
           done
