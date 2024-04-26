@@ -31,6 +31,21 @@ export enum GLTFType {
   MAT4 = 6,
 }
 
+export enum GLTFTextureFilter {
+  NEAREST = 9728,
+  LINEAR = 9729,
+  NEAREST_MIPMAP_NEAREST = 9984,
+  LINEAR_MIPMAP_NEAREST = 9985,
+  NEAREST_MIPMAP_LINEAR = 9986,
+  LINEAR_MIPMAP_LINEAR = 9987,
+}
+
+export enum GLTFTextureWrap {
+  REPEAT = 10497,
+  CLAMP_TO_EDGE = 33071,
+  MIRRORED_REPEAT = 33648,
+}
+
 export function alignTo(val: number, align: number) {
   return Math.floor((val + align - 1) / align) * align;
 }

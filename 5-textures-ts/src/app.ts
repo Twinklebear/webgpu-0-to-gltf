@@ -3,7 +3,7 @@ import { mat4 } from "gl-matrix";
 import { ArcballCamera } from "arcball_camera";
 import { Controller } from "ez_canvas_controller";
 
-import shaderCode from "./glb_prim.wgsl";
+import shaderCode from "./gltf_prim.wgsl";
 import duck from "./Duck.glb";
 
 import { uploadGLB } from "./import_glb";

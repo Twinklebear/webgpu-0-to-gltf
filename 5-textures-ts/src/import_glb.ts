@@ -3,7 +3,7 @@ import { GLTFRenderMode, GLTFComponentType, parseGltfType } from "./gltf_enums";
 import { GLTFBuffer, GLTFBufferView } from "./gltf_buffer";
 import { GLTFAccessor } from "./gltf_accessor";
 import { GLTFPrimitive } from "./gltf_primitive";
-import { GLTFMesh, GLTFNode, GLTFScene } from "./glb_mesh";
+import { GLTFMesh, GLTFNode, GLTFScene } from "./gltf_mesh";
 
 // Flatten the glTF node tree passed to a single-level so that we don't have to worry
 // about nested transforms in the renderer. The root node is included in the flattened tree
