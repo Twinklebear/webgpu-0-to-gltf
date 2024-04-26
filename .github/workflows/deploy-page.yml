@@ -1,0 +1,58 @@
+name: Deploy App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "latest"
+
+      # Build each lessons app
+      - name: Build App
+        run: |
+          for d in `ls -d */`; do
+            echo "Building $d"
+            cd $d
+            npm i
+            npm run build
+            cd ..
+          done
+
+      # Build the distribution to serve each app
+      - name: Collect App Dists
+        run: |
+          mkdir dist
+          for d in `ls -d */`; do
+            echo "Collecting $d"
+            cp -r $d/dist dist/$d
+          done
+
+      - name: Upload Web App Dist
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ github.workspace }}/dist
+
+  deploy:
+    needs: build
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
