@@ -156,14 +156,6 @@ import { uploadGLB } from "./import_glb";
   };
   controller.registerForCanvas(canvas);
 
-  let animationFrame = function () {
-    let resolve = null;
-    let promise = new Promise((r) => (resolve = r));
-    window.requestAnimationFrame(resolve);
-    return promise;
-  };
-  requestAnimationFrame(animationFrame);
-
   let renderPassDesc = {
     colorAttachments: [
       {
@@ -185,9 +177,7 @@ import { uploadGLB } from "./import_glb";
   };
 
   // Render!
-  while (true) {
-    await animationFrame();
-
+  const render = () => {
     // Update camera buffer
     projView = mat4.mul(projView, proj, camera.camera);
 
@@ -215,5 +205,8 @@ import { uploadGLB } from "./import_glb";
 
     renderPass.end();
     device.queue.submit([commandEncoder.finish()]);
-  }
+    upload.destroy();
+    requestAnimationFrame(render);
+  };
+  requestAnimationFrame(render);
 })();

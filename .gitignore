@@ -10,3 +10,4 @@ js/liblas_wrapper.js
 glslc.exe
 node_modules
 dist/
+pnpm-lock.yaml

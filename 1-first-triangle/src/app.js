@@ -112,18 +112,8 @@ import shaderCode from "./triangle.wgsl";
         }
     };
 
-    var animationFrame = function () {
-        var resolve = null;
-        var promise = new Promise(r => resolve = r);
-        window.requestAnimationFrame(resolve);
-        return promise
-    };
-    requestAnimationFrame(animationFrame);
-
     // Render!
-    while (true) {
-        await animationFrame();
-
+    const render = () => {
         renderPassDesc.colorAttachments[0].view = context.getCurrentTexture().createView();
 
         var commandEncoder = device.createCommandEncoder();
@@ -136,5 +126,7 @@ import shaderCode from "./triangle.wgsl";
 
         renderPass.end();
         device.queue.submit([commandEncoder.finish()]);
+        requestAnimationFrame(render);
     }
+    requestAnimationFrame(render);
 })();

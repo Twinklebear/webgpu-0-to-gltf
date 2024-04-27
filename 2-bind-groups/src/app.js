@@ -154,18 +154,8 @@ import {Controller} from "ez_canvas_controller";
     };
     controller.registerForCanvas(canvas);
 
-    var animationFrame = function () {
-        var resolve = null;
-        var promise = new Promise(r => resolve = r);
-        window.requestAnimationFrame(resolve);
-        return promise
-    };
-    requestAnimationFrame(animationFrame);
-
     // Render!
-    while (true) {
-        await animationFrame();
-
+    const render = () => {
         // Update camera buffer
         projView = mat4.mul(projView, proj, camera.camera);
 
@@ -191,5 +181,9 @@ import {Controller} from "ez_canvas_controller";
 
         renderPass.end();
         device.queue.submit([commandEncoder.finish()]);
-    }
+        upload.destroy();
+
+        requestAnimationFrame(render);
+    };
+    requestAnimationFrame(render);
 })();
