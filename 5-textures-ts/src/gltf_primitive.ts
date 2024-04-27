@@ -1,7 +1,10 @@
 import { GLTFAccessor } from "./gltf_accessor";
 import { GLTFRenderMode } from "./gltf_enums";
+import { GLTFMaterial } from "./gltf_material";
 
 export class GLTFPrimitive {
+  material: GLTFMaterial;
+
   positions: GLTFAccessor;
   indices: GLTFAccessor;
   topology: GLTFRenderMode;
@@ -9,10 +12,13 @@ export class GLTFPrimitive {
   renderPipeline: GPURenderPipeline;
 
   constructor(
+    material: GLTFMaterial,
     positions: GLTFAccessor,
     indices: GLTFAccessor,
     topology: GLTFRenderMode
   ) {
+    this.material = material;
+
     this.positions = positions;
     this.indices = indices;
     this.topology = topology;

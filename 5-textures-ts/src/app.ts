@@ -103,8 +103,8 @@ import { uploadGLB } from "./import_glb";
     reader.onerror = function () {
       throw Error("Error reading GLB file");
     };
-    reader.onload = function () {
-      scene = uploadGLB(reader.result as ArrayBuffer, device);
+    reader.onload = async function () {
+      scene = await uploadGLB(reader.result as ArrayBuffer, device);
       scene.buildRenderPipeline(
         device,
         shaderModule,
