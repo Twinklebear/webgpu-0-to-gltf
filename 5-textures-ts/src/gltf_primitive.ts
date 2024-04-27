@@ -7,6 +7,7 @@ export class GLTFPrimitive {
 
   positions: GLTFAccessor;
   indices: GLTFAccessor;
+  texcoords: GLTFAccessor;
   topology: GLTFRenderMode;
 
   renderPipeline: GPURenderPipeline;
@@ -15,12 +16,14 @@ export class GLTFPrimitive {
     material: GLTFMaterial,
     positions: GLTFAccessor,
     indices: GLTFAccessor,
+    texcoords: GLTFAccessor,
     topology: GLTFRenderMode
   ) {
     this.material = material;
 
     this.positions = positions;
     this.indices = indices;
+    this.texcoords = texcoords;
     this.topology = topology;
     this.renderPipeline = null;
 
@@ -31,6 +34,11 @@ export class GLTFPrimitive {
       this.indices.view.needsUpload = true;
       this.indices.view.addUsage(GPUBufferUsage.INDEX);
     }
+
+    if (this.texcoords) {
+      this.texcoords.view.needsUpload = true;
+      this.texcoords.view.addUsage(GPUBufferUsage.VERTEX);
+    }
   }
 
   buildRenderPipeline(
@@ -40,36 +48,51 @@ export class GLTFPrimitive {
     depthFormat: GPUTextureFormat,
     bindGroupLayouts: Array<GPUBindGroupLayout>
   ) {
+    let vertexBuffers: GPUVertexBufferLayout[] = [
+      {
+        arrayStride: this.positions.byteStride,
+        attributes: [
+          // Note: We do not pass the positions.byteOffset here, as its
+          // meaning can vary in different glB files, i.e., if it's being used
+          // for an interleaved element offset or an absolute offset.
+          //
+          // Setting the offset here for the attribute requires it to be <= byteStride,
+          // as would be the case for an interleaved vertex buffer.
+          //
+          // Offsets for interleaved elements can be passed here if we find
+          // a single buffer is being referenced by multiple attributes and
+          // the offsets fit within the byteStride. For simplicity we do not
+          // detect this case right now, and just take each buffer independently
+          // and apply the offst (per-element or absolute) in setVertexBuffer.
+          {
+            format: this.positions.elementType as GPUVertexFormat,
+            offset: 0,
+            shaderLocation: 0,
+          },
+        ],
+      },
+    ];
+    if (this.texcoords) {
+      vertexBuffers.push({
+        arrayStride: this.texcoords.byteStride,
+        attributes: [
+          {
+            format: this.texcoords.elementType as GPUVertexFormat,
+            offset: 0,
+            shaderLocation: 1,
+          },
+        ],
+      });
+    }
+    console.log(vertexBuffers);
+
     // Vertex attribute state and shader stage
     let vertexState = {
       // Shader stage info
       module: shaderModule,
       entryPoint: "vertex_main",
       // Vertex buffer info
-      buffers: [
-        {
-          arrayStride: this.positions.byteStride,
-          attributes: [
-            // Note: We do not pass the positions.byteOffset here, as its
-            // meaning can vary in different glB files, i.e., if it's being used
-            // for an interleaved element offset or an absolute offset.
-            //
-            // Setting the offset here for the attribute requires it to be <= byteStride,
-            // as would be the case for an interleaved vertex buffer.
-            //
-            // Offsets for interleaved elements can be passed here if we find
-            // a single buffer is being referenced by multiple attributes and
-            // the offsets fit within the byteStride. For simplicity we do not
-            // detect this case right now, and just take each buffer independently
-            // and apply the offst (per-element or absolute) in setVertexBuffer.
-            {
-              format: this.positions.elementType,
-              offset: 0,
-              shaderLocation: 0,
-            },
-          ],
-        },
-      ],
+      buffers: vertexBuffers,
     };
 
     let fragmentState = {
@@ -92,6 +115,9 @@ export class GLTFPrimitive {
       primitive = { topology: "triangle-list" };
     }
 
+    // Add the material bind group layout
+    bindGroupLayouts.push(this.material.bindGroupLayout);
+
     let layout = device.createPipelineLayout({
       bindGroupLayouts: bindGroupLayouts,
     });
@@ -112,6 +138,8 @@ export class GLTFPrimitive {
   render(renderPassEncoder: GPURenderPassEncoder) {
     renderPassEncoder.setPipeline(this.renderPipeline);
 
+    renderPassEncoder.setBindGroup(2, this.material.bindGroup);
+
     // Apply the accessor's byteOffset here to handle both global and interleaved
     // offsets for the buffer. Setting the offset here allows handling both cases,
     // with the downside that we must repeatedly bind the same buffer at different
@@ -123,6 +151,15 @@ export class GLTFPrimitive {
       this.positions.byteOffset,
       this.positions.byteLength
     );
+
+    if (this.texcoords) {
+      renderPassEncoder.setVertexBuffer(
+        1,
+        this.texcoords.view.gpuBuffer,
+        this.texcoords.byteOffset,
+        this.texcoords.byteLength
+      );
+    }
 
     if (this.indices) {
       renderPassEncoder.setIndexBuffer(

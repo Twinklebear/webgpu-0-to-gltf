@@ -121,7 +121,7 @@ import { uploadGLB } from "./import_glb";
   };
 
   // Setup the camera
-  let camera = new ArcballCamera([0, 1, -3], [0, 1, 0], [0, 1, 0], 0.5, [
+  let camera = new ArcballCamera([0, 1, -3], [0, 1, 0], [0, 1, 0], 2.5, [
     canvas.width,
     canvas.height,
   ]);
@@ -129,8 +129,8 @@ import { uploadGLB } from "./import_glb";
     mat4.create(),
     (50 * Math.PI) / 180.0,
     canvas.width / canvas.height,
-    0.01,
-    1000
+    0.1,
+    100
   );
   let projView = mat4.create();
 

@@ -178,7 +178,7 @@ function loadMaterials(jsonChunk: any, textures: GLTFTexture[]) {
     console.log(m);
     const pbrMR = m["pbrMetallicRoughness"];
     // Default base color factor of 1, 1, 1
-    const baseColorFactor = pbrMR["baseColorFactor"] ?? [1, 1, 1];
+    const baseColorFactor = pbrMR["baseColorFactor"] ?? [1, 1, 1, 1];
     const metallicFactor = pbrMR["metallicFactor"] ?? 0;
     const roughnessFactor = pbrMR["roughnessFactor"] ?? 1;
 
@@ -234,10 +234,13 @@ function loadMeshes(
       // While we only want the position attribute right now, we'll load
       // the others later as well.
       let positions = null;
+      let texcoords = null;
       for (let attr in prim["attributes"]) {
         let accessor = accessors[prim["attributes"][attr]];
-        if (attr == "POSITION") {
+        if (attr === "POSITION") {
           positions = accessor;
+        } else if (attr === "TEXCOORD_0") {
+          texcoords = accessor;
         }
       }
 
@@ -245,7 +248,9 @@ function loadMeshes(
       let mat = materials[prim["material"]];
 
       // Add the primitive to the mesh's list of primitives
-      meshPrimitives.push(new GLTFPrimitive(mat, positions, indices, topology));
+      meshPrimitives.push(
+        new GLTFPrimitive(mat, positions, indices, texcoords, topology)
+      );
     }
     meshes.push(new GLTFMesh(mesh["name"], meshPrimitives));
   }
@@ -332,6 +337,11 @@ export async function uploadGLB(buffer: ArrayBuffer, device: GPUDevice) {
   // GPU texture format
   images.forEach((img: GLTFImage) => {
     img.upload(device);
+  });
+
+  // Create bind groups and UBOs for materials
+  materials.forEach((mat: GLTFMaterial) => {
+    mat.upload(device);
   });
 
   // Upload the buffer views used by mesh
