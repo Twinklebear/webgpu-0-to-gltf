@@ -115,11 +115,11 @@ export class GLTFMaterial {
       });
 
       bgEntries.push({
-        binding: 1,
+        binding: 3,
         resource: this.metallicRoughnessTexture.sampler.sampler,
       });
       bgEntries.push({
-        binding: 2,
+        binding: 4,
         resource: this.metallicRoughnessTexture.image.view,
       });
     }
