@@ -129,7 +129,7 @@ import { uploadGLB } from "./import_glb";
     mat4.create(),
     (50 * Math.PI) / 180.0,
     canvas.width / canvas.height,
-    0.1,
+    0.01,
     100
   );
   let projView = mat4.create();

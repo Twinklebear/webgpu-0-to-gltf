@@ -3,8 +3,8 @@ import { GLTFTextureFilter, GLTFTextureWrap } from "./gltf_enums";
 
 // Defines how to sample an image
 export class GLTFSampler {
-  magFilter: GPUFilterMode = "nearest";
-  minFilter: GPUFilterMode = "nearest";
+  magFilter: GPUFilterMode = "linear";
+  minFilter: GPUFilterMode = "linear";
 
   wrapU: GPUAddressMode = "repeat";
   wrapV: GPUAddressMode = "repeat";

@@ -145,6 +145,11 @@ async function loadImages(jsonChunk: any, bufferViews: GLTFBufferView[]) {
 
 function loadSamplers(jsonChunk: any) {
   let samplers = [];
+  // If there are no samplers, just return a single default one
+  if (!jsonChunk.samplers) {
+    return [];
+  }
+
   for (let s of jsonChunk.samplers) {
     console.log(s);
     samplers.push(
@@ -165,9 +170,30 @@ function loadTextures(
   samplers: GLTFSampler[]
 ) {
   let textures = [];
+  const defaultSampler = new GLTFSampler(
+    GLTFTextureFilter.LINEAR,
+    GLTFTextureFilter.LINEAR,
+    GLTFTextureWrap.REPEAT,
+    GLTFTextureWrap.REPEAT
+  );
+  let usedDefaultSampler = false;
+
   for (let t of jsonChunk.textures) {
     console.log(t);
-    textures.push(new GLTFTexture(samplers[t["sampler"]], images[t["source"]]));
+    let sampler = null;
+    if ("sampler" in t) {
+      sampler = samplers[t["sampler"]];
+    } else {
+      // If no sampler was specified, use the default
+      sampler = defaultSampler;
+      usedDefaultSampler = true;
+    }
+    textures.push(new GLTFTexture(sampler, images[t["source"]]));
+  }
+  // If we used the default sampler add it to the samplers list so its
+  // GPU resources will be created
+  if (usedDefaultSampler) {
+    samplers.push(defaultSampler);
   }
   return textures;
 }
