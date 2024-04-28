@@ -1,5 +1,10 @@
 import { GLTFBufferView } from "./gltf_buffer";
-import { GLTFTextureFilter, GLTFTextureWrap } from "./gltf_enums";
+import {
+  GLTFTextureFilter,
+  GLTFTextureWrap,
+  gltfAddressMode,
+  gltfTextureFilterMode,
+} from "./gltf_enums";
 
 // Defines how to sample an image
 export class GLTFSampler {
@@ -17,34 +22,11 @@ export class GLTFSampler {
     wrapU: GLTFTextureWrap,
     wrapV: GLTFTextureWrap
   ) {
-    this.magFilter =
-      magFilter == GLTFTextureFilter.NEAREST ? "nearest" : "linear";
-    this.minFilter =
-      minFilter == GLTFTextureFilter.NEAREST ? "nearest" : "linear";
+    this.magFilter = gltfTextureFilterMode(magFilter);
+    this.minFilter = gltfTextureFilterMode(minFilter);
 
-    switch (wrapU) {
-      case GLTFTextureWrap.REPEAT:
-        this.wrapU = "repeat";
-        break;
-      case GLTFTextureWrap.CLAMP_TO_EDGE:
-        this.wrapU = "clamp-to-edge";
-        break;
-      case GLTFTextureWrap.MIRRORED_REPEAT:
-        this.wrapU = "mirror-repeat";
-        break;
-    }
-
-    switch (wrapV) {
-      case GLTFTextureWrap.REPEAT:
-        this.wrapV = "repeat";
-        break;
-      case GLTFTextureWrap.CLAMP_TO_EDGE:
-        this.wrapV = "clamp-to-edge";
-        break;
-      case GLTFTextureWrap.MIRRORED_REPEAT:
-        this.wrapV = "mirror-repeat";
-        break;
-    }
+    this.wrapU = gltfAddressMode(wrapU);
+    this.wrapV = gltfAddressMode(wrapV);
   }
 
   // Create the GPU sampler
