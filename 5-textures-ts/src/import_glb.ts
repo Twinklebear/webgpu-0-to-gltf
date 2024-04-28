@@ -148,7 +148,6 @@ async function loadImages(jsonChunk: any, bufferViews: GLTFBufferView[]) {
 
 function loadSamplers(jsonChunk: any) {
   let samplers = [];
-  // If there are no samplers, just return a single default one
   if (!jsonChunk.samplers) {
     return [];
   }
