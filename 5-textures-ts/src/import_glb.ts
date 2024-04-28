@@ -133,7 +133,10 @@ function loadAccessors(jsonChunk: any, bufferViews: GLTFBufferView[]) {
 }
 
 async function loadImages(jsonChunk: any, bufferViews: GLTFBufferView[]) {
-  let images = [];
+  let images: GLTFImage[] = [];
+  if (!jsonChunk.images) {
+    return images;
+  }
   for (let img of jsonChunk.images) {
     let bv = bufferViews[img["bufferView"]];
     let gltfImg = new GLTFImage(bv, img["mimeType"]);
@@ -169,7 +172,10 @@ function loadTextures(
   images: GLTFImage[],
   samplers: GLTFSampler[]
 ) {
-  let textures = [];
+  let textures: GLTFTexture[] = [];
+  if (!jsonChunk.textures) {
+    return textures;
+  }
   const defaultSampler = new GLTFSampler(
     GLTFTextureFilter.LINEAR,
     GLTFTextureFilter.LINEAR,
