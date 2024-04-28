@@ -42,6 +42,13 @@ var base_color_sampler: sampler;
 @group(2) @binding(2)
 var base_color_texture: texture_2d<f32>;
 
+fn linear_to_srgb(x: f32) -> f32 {
+    if (x <= 0.0031308) {
+        return 12.92 * x;
+    }
+    return 1.055 * pow(x, 1.0 / 2.4) - 0.055;
+}
+
 @vertex
 fn vertex_main(vert: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -57,5 +64,11 @@ fn fragment_main(in: VertexOutput) -> @location(0) float4 {
     let dy = dpdy(in.world_pos);
     let n = normalize(cross(dx, dy));
     let base_color = textureSample(base_color_texture, base_color_sampler, in.texcoords);
-    return material_params.base_color_factor * base_color;
+    var color = material_params.base_color_factor * base_color;
+
+    color.x = linear_to_srgb(color.x);
+    color.y = linear_to_srgb(color.y);
+    color.z = linear_to_srgb(color.z);
+    color.w = 1.0;
+    return color;
 }
