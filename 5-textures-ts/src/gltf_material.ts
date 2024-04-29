@@ -7,7 +7,7 @@ export class GLTFMaterial {
 
   // TODO later: multiple texture coords support
 
-  metallicFactor: number = 0;
+  metallicFactor: number = 1;
   roughnessFactor: number = 1;
   metallicRoughnessTexture: GLTFTexture | null = null;
 
