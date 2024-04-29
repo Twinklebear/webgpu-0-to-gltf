@@ -210,7 +210,7 @@ function loadMaterials(jsonChunk: any, textures: GLTFTexture[]) {
     const pbrMR = m["pbrMetallicRoughness"];
     // Default base color factor of 1, 1, 1
     const baseColorFactor = pbrMR["baseColorFactor"] ?? [1, 1, 1, 1];
-    const metallicFactor = pbrMR["metallicFactor"] ?? 0;
+    const metallicFactor = pbrMR["metallicFactor"] ?? 1;
     const roughnessFactor = pbrMR["roughnessFactor"] ?? 1;
 
     let baseColorTexture: GLTFTexture | null = null;
