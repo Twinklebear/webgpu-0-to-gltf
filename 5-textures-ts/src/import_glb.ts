@@ -360,26 +360,23 @@ export async function uploadGLB(buffer: ArrayBuffer, device: GPUDevice) {
   console.log(meshes);
 
   // Create all samplers
-  samplers.forEach((s: GLTFSampler) => {
-    s.create(device);
-  });
-
-  // Upload all images, now that we know their usage and can pick the right
-  // GPU texture format
-  images.forEach((img: GLTFImage) => {
-    img.upload(device);
-  });
-
-  // Create bind groups and UBOs for materials
-  materials.forEach((mat: GLTFMaterial) => {
-    mat.upload(device);
-  });
-
   // Upload the buffer views used by mesh
   bufferViews.forEach((bv: GLTFBufferView) => {
     if (bv.needsUpload) {
       bv.upload(device);
     }
+  });
+  // Upload all images, now that we know their usage and can pick the right
+  // GPU texture format
+  images.forEach((img: GLTFImage) => {
+    img.upload(device);
+  });
+  samplers.forEach((s: GLTFSampler) => {
+    s.create(device);
+  });
+  // Create bind groups and UBOs for materials
+  materials.forEach((mat: GLTFMaterial) => {
+    mat.upload(device);
   });
 
   // Build the default GLTFScene, we just take all the mesh nodes for now
