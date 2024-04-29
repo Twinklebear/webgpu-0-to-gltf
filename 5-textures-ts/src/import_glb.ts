@@ -138,10 +138,10 @@ async function loadImages(jsonChunk: any, bufferViews: GLTFBufferView[]) {
     return images;
   }
   for (let img of jsonChunk.images) {
-    let bv = bufferViews[img["bufferView"]];
-    let gltfImg = new GLTFImage(bv, img["mimeType"]);
-    await gltfImg.decode();
-    images.push(gltfImg);
+    const bv = bufferViews[img["bufferView"]];
+    const blob = new Blob([bv.view], { type: img["mimeType"] });
+    const bitmap = await createImageBitmap(blob);
+    images.push(new GLTFImage(bitmap));
   }
   return images;
 }

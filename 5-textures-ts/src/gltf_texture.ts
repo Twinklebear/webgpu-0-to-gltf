@@ -51,9 +51,6 @@ export enum ImageUsage {
 
 // Stores the image data texture for an image in the file
 export class GLTFImage {
-  mimeType: string;
-  blob: Blob;
-
   bitmap: ImageBitmap;
 
   // How the texture is used in the materials
@@ -63,14 +60,8 @@ export class GLTFImage {
   image: GPUTexture = null;
   view: GPUTextureView = null;
 
-  constructor(bufferView: GLTFBufferView, mimeType: string) {
-    this.blob = new Blob([bufferView.view], { type: mimeType });
-    this.mimeType = mimeType;
-  }
-
-  // Decode the image blob into an image bitmap
-  async decode() {
-    this.bitmap = await createImageBitmap(this.blob);
+  constructor(bitmap: ImageBitmap) {
+    this.bitmap = bitmap;
   }
 
   // Set the usage mode for the image
