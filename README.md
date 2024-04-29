@@ -38,3 +38,9 @@ open Chrome Beta/Canary (or stable once 113 is out) and point it at `localhost:8
   - [App](https://www.willusher.io/webgpu-0-to-gltf/4-full-scene/)
 - TypeScript Code: [4-full-scene-ts](4-full-scene-ts/)
   - [App](https://www.willusher.io/webgpu-0-to-gltf/4-full-scene-ts/)
+
+## Basic Materials and Textures
+
+- [Post](https://www.willusher.io/graphics/2024/04/28/0-to-gltf-basic-materials)
+- TypeScript Code: [5-textures-ts](5-textures-ts)
+  - [App](https://www.willusher.io/webgpu-0-to-gltf/5-textures-ts)
