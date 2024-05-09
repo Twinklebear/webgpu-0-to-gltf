@@ -36,7 +36,6 @@ export class GLTFSampler {
       minFilter: this.minFilter,
       addressModeU: this.wrapU,
       addressModeV: this.wrapV,
-      mipmapFilter: "nearest",
     });
   }
 }

@@ -186,7 +186,7 @@ function loadTextures(
   for (let t of jsonChunk.textures) {
     console.log(t);
     let sampler = null;
-    if ("sampler" in t) {
+    if ("sampler" in t && t["samplers"] < samplers.length) {
       sampler = samplers[t["sampler"]];
     } else {
       // If no sampler was specified, use the default
